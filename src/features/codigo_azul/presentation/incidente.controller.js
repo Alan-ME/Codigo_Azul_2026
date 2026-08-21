@@ -15,18 +15,22 @@ export class IncidenteController {
    * POST /api/v1/incidentes/activar
    */
   activar = asyncHandler(async (req, res) => {
-    const { ubicacionId } = req.body;
+    const ubicacionId = parseInt(req.body.ubicacionId, 10);
+    if (!req.body.ubicacionId || Number.isNaN(ubicacionId) || ubicacionId <= 0) {
+      throw ApiError.badRequest('El campo ubicacionId es obligatorio y debe ser un entero positivo.');
+    }
+
     const user = req.user;
 
     const result = await activarCodigoAzulUseCase.execute({
-      ubicacionId: parseInt(ubicacionId, 10),
+      ubicacionId,
       user,
     });
 
     const statusCode = result.esReincidencia ? 200 : 201;
     const message = result.esReincidencia
       ? 'Alerta ya activa en la sala (idempotencia aplicada).'
-      : '¡Alerta Código Azul activada y despachada con éxito!';
+      : 'Alerta Codigo Azul activada y despachada con exito.';
 
     return sendSuccess(res, result.incidente, statusCode, message);
   });
@@ -36,6 +40,10 @@ export class IncidenteController {
    */
   confirmarAck = asyncHandler(async (req, res) => {
     const incidenteId = parseInt(req.params.id, 10);
+    if (Number.isNaN(incidenteId) || incidenteId <= 0) {
+      throw ApiError.badRequest('El ID del incidente debe ser un entero positivo.');
+    }
+
     const user = req.user;
 
     const result = await confirmarAckUseCase.execute({
@@ -51,6 +59,10 @@ export class IncidenteController {
    */
   cancelar = asyncHandler(async (req, res) => {
     const incidenteId = parseInt(req.params.id, 10);
+    if (Number.isNaN(incidenteId) || incidenteId <= 0) {
+      throw ApiError.badRequest('El ID del incidente debe ser un entero positivo.');
+    }
+
     const { motivo } = req.body;
     const user = req.user;
 
@@ -60,7 +72,7 @@ export class IncidenteController {
       user,
     });
 
-    return sendSuccess(res, result, 200, 'Alerta cancelada y registrada en auditoría.');
+    return sendSuccess(res, result, 200, 'Alerta cancelada y registrada en auditoria.');
   });
 
   /**
@@ -84,13 +96,17 @@ export class IncidenteController {
    */
   obtenerDetalle = asyncHandler(async (req, res) => {
     const incidenteId = parseInt(req.params.id, 10);
+    if (Number.isNaN(incidenteId) || incidenteId <= 0) {
+      throw ApiError.badRequest('El ID del incidente debe ser un entero positivo.');
+    }
+
     const detalle = await listarActivosUseCase.obtenerDetalle(incidenteId);
 
     if (!detalle) {
       throw ApiError.notFound(`El incidente con ID ${incidenteId} no existe.`);
     }
 
-    return sendSuccess(res, detalle, 200, 'Detalle de incidente con auditoría.');
+    return sendSuccess(res, detalle, 200, 'Detalle de incidente con auditoria.');
   });
 }
 
