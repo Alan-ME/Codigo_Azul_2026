@@ -7,6 +7,9 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "start:all": "node scripts/start-all.js",
+    "stop": "node scripts/stop-all.js",
+    "restart": "node scripts/stop-all.js && node scripts/start-all.js",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
     "test": "node scripts/test-api.js"
@@ -29,6 +32,7 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.11.0",
     "pg": "^8.23.0",
+    "socket.io": "^4.8.3",
     "uuid": "^14.0.2"
   },
   "devDependencies": {
