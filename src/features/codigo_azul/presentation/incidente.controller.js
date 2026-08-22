@@ -15,9 +15,10 @@ export class IncidenteController {
    * POST /api/v1/incidentes/activar
    */
   activar = asyncHandler(async (req, res) => {
-    const ubicacionId = parseInt(req.body.ubicacionId, 10);
-    if (!req.body.ubicacionId || Number.isNaN(ubicacionId) || ubicacionId <= 0) {
-      throw ApiError.badRequest('El campo ubicacionId es obligatorio y debe ser un entero positivo.');
+    const rawId = req.body.ubicacionId !== undefined ? req.body.ubicacionId : req.body.camaId;
+    const ubicacionId = parseInt(rawId, 10);
+    if (!rawId || Number.isNaN(ubicacionId) || ubicacionId <= 0) {
+      throw ApiError.badRequest('El campo ubicacionId (o camaId) es obligatorio y debe ser un entero positivo.');
     }
 
     const user = req.user;

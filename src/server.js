@@ -14,8 +14,11 @@ import app from './app.js';
 import { config } from './core/config/env.js';
 import { testConnection } from './core/config/db.js';
 
-/** Servidor HTTP — exportado para que Alex adjunte Socket.IO. */
+import { initSocketGateway } from './core/sockets/socket.gateway.js';
+
+/** Servidor HTTP con Gateway Socket.IO integrado */
 export const httpServer = createServer(app);
+export const io = initSocketGateway(httpServer);
 
 const startServer = async () => {
   // Verificar conexión a PostgreSQL antes de aceptar requests.
@@ -28,8 +31,11 @@ const startServer = async () => {
   httpServer.listen(config.port, () => {
     console.log('');
     console.log('========================================================');
-    console.log('   CODIGO AZUL — Backend Core & Database                ');
-    console.log(`   URL:     http://localhost:${config.port}                      `);
+    console.log('   CODIGO AZUL -- Backend Core & Database               ');
+    console.log(`   API:     http://localhost:${config.port}/api/v1                 `);
+    console.log(`   App PC:  http://localhost:${config.port}/app                    `);
+    console.log(`   Alarma:  http://localhost:${config.port}/alarma                 `);
+    console.log(`   Sockets: ws://localhost:${config.port}/socket.io/               `);
     console.log(`   Entorno: ${config.nodeEnv.padEnd(43)}`);
     console.log('   Health:  GET /api/v1/health                          ');
     console.log('========================================================');
