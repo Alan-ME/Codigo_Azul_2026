@@ -9,8 +9,8 @@
 
 > **Institución**: Escuela de Educación Secundaria Técnica N.º 2 "Educación y Trabajo"  
 > **Certamen**: Olimpiadas Nacionales de Educación Técnico Profesional (ONETP 2026)  
-> **Especialidad**: Informática / Programación  
-> **Desarrollador Responsable**: Ivan Ismael Cardozo (Backend Core & Database Engineer Lead)  
+> **Especialidad**: Programación  
+> **Desarrollador Responsable**: Ivan Ismael Cardozo (Backend Core & Database Lead)  
 > **Líder de Arquitectura y QA**: Alan Martinez  
 > **Patrón Arquitectónico**: Clean Architecture + Feature-First + Repository Pattern  
 
