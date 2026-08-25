@@ -15,6 +15,7 @@ import { sendSuccess } from './core/helpers/api-response.js';
 // -- Feature Routers y Middlewares ────────────────────────────
 import authRoutes from './features/auth/presentation/auth.routes.js';
 import incidenteRoutes from './features/codigo_azul/presentation/incidente.routes.js';
+import fcmRoutes from './features/fcm/presentation/fcm.routes.js';
 import { incidenteController } from './features/codigo_azul/presentation/incidente.controller.js';
 import { authenticateJWT } from './core/middlewares/auth.middleware.js';
 
@@ -60,6 +61,7 @@ app.get('/api/v1/health', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/usuarios', authRoutes);
 app.use('/api/v1/incidentes', incidenteRoutes);
+app.use('/api/v1/fcm', fcmRoutes);
 app.get('/api/v1/ubicaciones', authenticateJWT, incidenteController.listarUbicaciones);
 
 // -- Frontend Integrado (public/) ─────────────────────────────
