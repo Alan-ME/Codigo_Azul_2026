@@ -14,24 +14,30 @@ console.log('===========================================================');
 // 1. Iniciar PostgreSQL si está detenido en Windows
 function verificarOIniciarPostgres() {
   console.log('[1/3] Verificando estado de PostgreSQL...');
+  try {
+    // Verificar si el puerto ya está escuchando (servicio de Windows activo)
+    const netstatOutput = execSync(`netstat -ano | findstr :${config.db.port || 5432}`, { stdio: 'pipe' }).toString();
+    if (netstatOutput.includes('LISTENING')) {
+      console.log('      PostgreSQL ya se encuentra en ejecución (servicio activo).');
+      return;
+    }
+  } catch {
+    // Puerto no abierto todavía
+  }
+
   const pgCtlPath = 'C:\\Program Files\\PostgreSQL\\18\\bin\\pg_ctl.exe';
   const pgDataPath = 'C:\\Program Files\\PostgreSQL\\18\\data';
 
   if (existsSync(pgCtlPath) && existsSync(pgDataPath)) {
+    console.log('      Iniciando servicio de PostgreSQL 18...');
     try {
-      execSync(`"${pgCtlPath}" status -D "${pgDataPath}"`, { stdio: 'ignore' });
-      console.log('      PostgreSQL ya se encuentra en ejecución.');
-    } catch {
-      console.log('      Iniciando servicio de PostgreSQL 18...');
-      try {
-        execSync(`"${pgCtlPath}" start -D "${pgDataPath}" -w`, { stdio: 'inherit' });
-        console.log('      PostgreSQL iniciado correctamente.');
-      } catch (err) {
-        console.warn('      Aviso al iniciar pg_ctl:', err.message);
-      }
+      execSync(`"${pgCtlPath}" start -D "${pgDataPath}" -w`, { stdio: 'inherit' });
+      console.log('      PostgreSQL iniciado correctamente.');
+    } catch (err) {
+      console.warn('      Aviso al iniciar pg_ctl:', err.message);
     }
   } else {
-    console.log('      PostgreSQL (ruta estándar de pg_ctl no encontrada, usando conexión TCP)...');
+    console.log('      PostgreSQL (usando conexión TCP)...');
   }
 }
 
