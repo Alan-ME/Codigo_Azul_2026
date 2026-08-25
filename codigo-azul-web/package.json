@@ -1,0 +1,23 @@
+{
+  "name": "codigo-azul-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Panel de Control Web de Guardia — SPA React para monitoreo en tiempo real de Código Azul.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}
