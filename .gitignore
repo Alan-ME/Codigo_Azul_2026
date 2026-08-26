@@ -10,6 +10,7 @@ __pycache__/
 
 # Variables de entorno y secretos
 .env
+env
 .env.local
 .env.*.local
 *.pem

@@ -15,6 +15,9 @@ const pool = new Pool({
   database: config.db.database,
   user:     config.db.user,
   password: config.db.password,
+  ssl:      (process.env.DB_SSL === 'true' || config.db.host !== 'localhost')
+    ? { rejectUnauthorized: false }
+    : false,
 
   // Pool tuning: conexiones suficientes para el MVP hospitalario.
   max:                20,

@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: codigo-azul-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: DB_HOST
+        value: db.qiofdrrnizzopzhwklfi.supabase.co
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        value: postgres
+      - key: DB_USER
+        value: postgres
+      - key: DB_PASSWORD
+        value: Tesobnemcp123
+      - key: JWT_SECRET
+        value: super_secret_jwt_key_codigo_azul_2026
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: FCM_PROJECT_ID
+        value: proyecto---olimpiada-2026
+      - key: FCM_CLIENT_EMAIL
+        value: firebase-adminsdk-fbsvc@proyecto---olimpiada-2026.iam.gserviceaccount.com
