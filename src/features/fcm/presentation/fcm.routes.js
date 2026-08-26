@@ -20,6 +20,13 @@ router.use(authenticateJWT);
 router.post('/token', fcmController.registrarToken);
 
 /**
+ * @route   DELETE /api/v1/fcm/token
+ * @desc    Desvincula el token FCM del usuario al hacer logout
+ * @access  Privado
+ */
+router.delete('/token', fcmController.eliminarToken);
+
+/**
  * @route   GET /api/v1/fcm/estado
  * @desc    Consulta el estado operativo de Firebase y cantidad de dispositivos vinculados
  * @access  Privado

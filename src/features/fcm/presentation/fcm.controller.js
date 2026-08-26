@@ -7,6 +7,7 @@
 import { asyncHandler } from '../../../core/helpers/async-handler.js';
 import { sendSuccess } from '../../../core/helpers/api-response.js';
 import { registrarTokenUseCase } from '../use_cases/registrar-token.use-case.js';
+import { desregistrarTokenUseCase } from '../use_cases/desregistrar-token.use-case.js';
 import { fcmRepository } from '../data/fcm.repository.js';
 import admin from '../../../config/firebase.config.js';
 
@@ -27,6 +28,22 @@ export class FcmController {
     });
 
     return sendSuccess(res, result, 201, 'Token FCM registrado y vinculado al usuario exitosamente.');
+  });
+
+  /**
+   * DELETE /api/v1/fcm/token
+   * Desregistra el token del dispositivo móvil al cerrar sesión.
+   */
+  eliminarToken = asyncHandler(async (req, res) => {
+    const { token } = req.body || {};
+    const user = req.user;
+
+    const result = await desregistrarTokenUseCase.execute({
+      usuarioId: user.id,
+      token,
+    });
+
+    return sendSuccess(res, result, 200, 'Dispositivo desvinculado de las alertas críticas.');
   });
 
   /**

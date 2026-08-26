@@ -59,6 +59,19 @@ const put = async (endpoint, body = {}, token = null) => {
   return { status: res.status, data };
 };
 
+const del = async (endpoint, body = {}, token = null) => {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
+    method: 'DELETE',
+    headers,
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  return { status: res.status, data };
+};
+
 const runAllTests = async () => {
   console.log('===========================================================');
   console.log('  SUITE DE PRUEBAS AUTOMATIZADAS — CODIGO AZUL BACKEND     ');
@@ -238,8 +251,14 @@ const runAllTests = async () => {
   assert(payloadTelemetria.tipo === 'FCM_PUSH_DISPATCH', 'Payload JSONB de telemetria tiene estructura correcta');
   assert(typeof payloadTelemetria.latenciaDespachoMs === 'number', `Latencia de despacho medida: ${payloadTelemetria.latenciaDespachoMs}ms`);
 
+  // 17. Desregistro de Token FCM en Logout (DELETE /api/v1/fcm/token)
+  logStep(17, 'Desregistro de Token FCM al Cerrar Sesion (DELETE /api/v1/fcm/token)');
+  const fcmDelRes = await del('/fcm/token', { token: fakeToken }, reanimador1Token);
+  assert(fcmDelRes.status === 200, 'Token FCM desvinculado con status HTTP 200');
+  assert(fcmDelRes.data.data.desvinculados >= 1, 'Dispositivo marcado como inactivo para evitar alertas fuera de guardia');
+
   console.log('\n===========================================================');
-  console.log('  TODAS LAS PRUEBAS FUNCIONALES, SEGURIDAD Y FCM PASARON (16/16 - 100%)');
+  console.log('  TODAS LAS PRUEBAS FUNCIONALES, SEGURIDAD Y FCM PASARON (17/17 - 100%)');
   console.log('===========================================================\n');
   process.exit(0);
 };
