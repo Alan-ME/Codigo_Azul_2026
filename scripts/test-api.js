@@ -5,8 +5,9 @@
 // transacciones ACID y trigger médico-legal.
 // ─────────────────────────────────────────────────────────────
 import { query } from '../src/core/config/db.js';
+import { config } from '../src/core/config/env.js';
 
-const BASE_URL = 'http://localhost:4000/api/v1';
+const BASE_URL = `http://localhost:${config.port || 3000}/api/v1`;
 
 const logStep = (step, title) => {
   console.log(`\n[TEST ${step}] ${title}`);
@@ -51,6 +52,19 @@ const put = async (endpoint, body = {}, token = null) => {
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     method: 'PUT',
+    headers,
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  return { status: res.status, data };
+};
+
+const del = async (endpoint, body = {}, token = null) => {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
+    method: 'DELETE',
     headers,
     body: JSON.stringify(body),
   });
@@ -123,7 +137,8 @@ const runAllTests = async () => {
   logStep(6, 'Monitoreo de Guardia (GET /api/v1/incidentes/activos)');
   const activosRes = await get('/incidentes/activos', guardiaToken);
   assert(activosRes.status === 200, 'Guardia consulta lista de activos');
-  const incidenteEncontrado = activosRes.data.data.find((i) => i.id === incidenteId);
+  const listaActivos = activosRes.data.data.incidentes || activosRes.data.data;
+  const incidenteEncontrado = (Array.isArray(listaActivos) ? listaActivos : []).find((i) => i.id === incidenteId);
   assert(Boolean(incidenteEncontrado), 'Incidente creado figura en el panel de guardia');
 
   // 7. Confirmación de Asistencia (ACK Primario)
@@ -191,8 +206,59 @@ const runAllTests = async () => {
     );
   }
 
+  // 13. Registro de Token FCM (Fase 2 - Alex Heredia)
+  logStep(13, 'Registro de Token FCM de Dispositivo Movil (POST /api/v1/fcm/token)');
+  const fakeToken = 'fcm_test_token_reanimador_doctor_cardiaco_2026_xyz';
+  const fcmRegRes = await post(
+    '/fcm/token',
+    { token: fakeToken, plataforma: 'ANDROID' },
+    reanimador1Token
+  );
+  assert(fcmRegRes.status === 201, 'Token FCM registrado con status HTTP 201');
+  assert(fcmRegRes.data.data.token === fakeToken, 'Token guardado coincide con el enviado');
+  assert(fcmRegRes.data.data.plataforma === 'ANDROID', 'Plataforma ANDROID identificada correctamente');
+
+  // 14. Seguridad en Registro FCM (Rechazo sin JWT)
+  logStep(14, 'Validacion de Seguridad en Endpoint FCM (Rechazo sin Token JWT)');
+  const unauthFcm = await post('/fcm/token', { token: 'unauthorized_token' }, null);
+  assert(unauthFcm.status === 401, 'Peticion sin JWT rechazada con HTTP 401 Unauthorized');
+
+  // 15. Consulta de Estado de Infraestructura FCM
+  logStep(15, 'Consulta de Estado del Servicio FCM (GET /api/v1/fcm/estado)');
+  const fcmEstadoRes = await get('/fcm/estado', reanimador1Token);
+  assert(fcmEstadoRes.status === 200, 'Estado de FCM responde HTTP 200 OK');
+  assert(fcmEstadoRes.data.data.dispositivosActivos >= 1, 'Al menos 1 dispositivo activo registrado en la base de datos');
+  assert(fcmEstadoRes.data.data.servicio.includes('Firebase Cloud Messaging'), 'Servicio identificado como FCM');
+
+  // 16. Telemetría y Auditoría JSONB de Push Despachada (Fases 3 y 4)
+  logStep(16, 'Verificacion de Telemetria y Auditoria JSONB de Despacho Push');
+  // Disparamos un nuevo incidente en otra sala para verificar el despacho FCM completo
+  const ubicacionesList = ubicacionesRes.data.data;
+  const otraUbicacion = ubicacionesList[1] || ubicacionesList[0];
+  const nuevoIncidenteRes = await post('/incidentes/activar', { ubicacionId: otraUbicacion.id }, medicoToken);
+  assert(nuevoIncidenteRes.status === 201 || nuevoIncidenteRes.status === 200, 'Incidente disparado para prueba de telemetria');
+  
+  // Esperar un breve instante para que el bus asíncrono procese la auditoría de telemetría
+  await new Promise((r) => setTimeout(r, 200));
+
+  const audTelemetria = await query(
+    `SELECT * FROM incidentes_auditoria_eventos 
+     WHERE tipo_evento = 'NOTIFICACION_PUSH_DESPACHADA' 
+     ORDER BY timestamp_evento DESC LIMIT 1`
+  );
+  assert(audTelemetria.rows.length > 0, 'Evento NOTIFICACION_PUSH_DESPACHADA registrado en auditoria inmutable');
+  const payloadTelemetria = audTelemetria.rows[0].payload_data;
+  assert(payloadTelemetria.tipo === 'FCM_PUSH_DISPATCH', 'Payload JSONB de telemetria tiene estructura correcta');
+  assert(typeof payloadTelemetria.latenciaDespachoMs === 'number', `Latencia de despacho medida: ${payloadTelemetria.latenciaDespachoMs}ms`);
+
+  // 17. Desregistro de Token FCM en Logout (DELETE /api/v1/fcm/token)
+  logStep(17, 'Desregistro de Token FCM al Cerrar Sesion (DELETE /api/v1/fcm/token)');
+  const fcmDelRes = await del('/fcm/token', { token: fakeToken }, reanimador1Token);
+  assert(fcmDelRes.status === 200, 'Token FCM desvinculado con status HTTP 200');
+  assert(fcmDelRes.data.data.desvinculados >= 1, 'Dispositivo marcado como inactivo para evitar alertas fuera de guardia');
+
   console.log('\n===========================================================');
-  console.log('  TODAS LAS PRUEBAS FUNCIONALES Y DE SEGURIDAD PASARON (100%)');
+  console.log('  TODAS LAS PRUEBAS FUNCIONALES, SEGURIDAD Y FCM PASARON (17/17 - 100%)');
   console.log('===========================================================\n');
   process.exit(0);
 };

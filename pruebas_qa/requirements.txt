@@ -1,0 +1,4 @@
+requests>=2.31
+python-socketio[asyncio_client]>=5.11
+psycopg2-binary>=2.9
+websocket-client>=1.7

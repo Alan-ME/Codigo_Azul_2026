@@ -16,6 +16,7 @@ const MIGRATION_FILES = [
   '001_create_enums.sql',
   '002_create_tables.sql',
   '003_create_triggers.sql',
+  '005_create_fcm_tokens.sql',
 ];
 
 const runMigrations = async () => {

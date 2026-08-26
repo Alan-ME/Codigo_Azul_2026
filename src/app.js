@@ -11,31 +11,94 @@ import { config } from './core/config/env.js';
 import { requestLogger } from './core/middlewares/request-logger.middleware.js';
 import { errorHandler } from './core/middlewares/error-handler.middleware.js';
 import { sendSuccess } from './core/helpers/api-response.js';
+import { query } from './core/config/db.js';
+import { testFirebaseConnection } from './config/firebase.config.js';
 
-// ── Feature Routers ──────────────────────────────────────────
+// -- Feature Routers y Middlewares ────────────────────────────
 import authRoutes from './features/auth/presentation/auth.routes.js';
 import incidenteRoutes from './features/codigo_azul/presentation/incidente.routes.js';
+import fcmRoutes from './features/fcm/presentation/fcm.routes.js';
+import { incidenteController } from './features/codigo_azul/presentation/incidente.controller.js';
+import { authenticateJWT } from './core/middlewares/auth.middleware.js';
+
+// -- Ruta al frontend integrado (public/) ────────────────────
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const FRONTEND_DIR = join(__dirname, '..', 'public');
 
 const app = express();
 
 // ── Middlewares Globales ─────────────────────────────────────
-app.use(helmet());                              // Headers de seguridad
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc:  ["'self'", "'unsafe-inline'"],
+        styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc:    ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc:     ["'self'", "data:", "blob:", "https://images.unsplash.com", "https://*.unsplash.com", "https:"],
+        connectSrc: ["'self'", "ws:", "wss:", "http://localhost:*", "http://127.0.0.1:*"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 app.use(cors({ origin: config.corsOrigin }));   // CORS configurado
 app.use(express.json({ limit: '1mb' }));        // Parseo de JSON
 app.use(requestLogger);                         // Log de requests
 
-// ── Health Check ─────────────────────────────────────────────
-app.get('/api/v1/health', (req, res) => {
+// ── Health Check Profundo ────────────────────────────────────
+app.get('/api/v1/health', async (req, res) => {
+  let dbStatus = 'offline';
+  let fcmStatus = 'offline';
+
+  try {
+    await query('SELECT 1');
+    dbStatus = 'online';
+  } catch (_) {
+    dbStatus = 'offline';
+  }
+
+  try {
+    fcmStatus = (await testFirebaseConnection()) ? 'online' : 'offline';
+  } catch (_) {
+    fcmStatus = 'offline';
+  }
+
+  const overall = dbStatus === 'online' ? 'online' : 'degraded';
+
   sendSuccess(res, {
-    status:    'online',
+    status:    overall,
     timestamp: new Date().toISOString(),
     version:   '1.0.0',
+    services: {
+      database: dbStatus,
+      firebase: fcmStatus,
+    },
   });
 });
 
-// ── Rutas por Feature ────────────────────────────────────────
+// -- Rutas por Feature ────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/incidentes', incidenteRoutes);
+app.use('/api/v1/fcm', fcmRoutes);
+app.get('/api/v1/ubicaciones', authenticateJWT, incidenteController.listarUbicaciones);
+
+// -- Frontend Integrado (public/) ─────────────────────────────
+// Dashboard PC hospitalario: http://localhost:4000/app
+app.use('/app', express.static(FRONTEND_DIR));
+
+// App Móvil / PWA Alarma: http://localhost:4000/alarma y /movil
+app.use('/alarma', express.static(join(FRONTEND_DIR, 'alarma')));
+app.use('/movil', express.static(join(FRONTEND_DIR, 'alarma')));
+
+// Redirección raíz hacia la aplicación web
+app.get('/', (req, res) => {
+  res.redirect('/app');
+});
 
 // ── Ruta 404 (no encontrada) ─────────────────────────────────
 app.use((req, res) => {

@@ -5,13 +5,11 @@
 [![Express](https://img.shields.io/badge/Express-v4.21_REST-000000?logo=express&logoColor=white)](https://expressjs.com/)
 [![Architecture](https://img.shields.io/badge/Pattern-Clean_Architecture_%2B_Feature--First-blueviolet)](#arquitectura-del-sistema)
 [![Standard](https://img.shields.io/badge/Norma-IEEE_830_%7C_ISO_25010_%7C_APA_7-00599C)](#normativas-y-estandares)
-[![Tests](https://img.shields.io/badge/Tests-12%2F12_Passing_(100%25)-brightgreen)](#verificacion-y-metricas-de-calidad)
+[![Tests](https://img.shields.io/badge/Tests-17%2F17_Passing_(100%25)-brightgreen)](#verificacion-y-metricas-de-calidad)
 
 > **Institución**: Escuela de Educación Secundaria Técnica N.º 2 "Educación y Trabajo"  
 > **Certamen**: Olimpiadas Nacionales de Educación Técnico Profesional (ONETP 2026)  
-> **Especialidad**: Programación  
-> **Desarrollador Responsable**: Ivan Ismael Cardozo (Backend Core & Database Lead)  
-> **Líder de Arquitectura y QA**: Alan Martinez  
+
 > **Patrón Arquitectónico**: Clean Architecture + Feature-First + Repository Pattern  
 
 ---
@@ -50,7 +48,7 @@ Este componente provee el **nucleo de procesamiento transaccional backend**, la 
 | **KPI-02** | Registro de Asistencia ACK con Telemetria | `<= 30.000 ms` | **10 - 20 ms** | Cumplido |
 | **KPI-03** | Integridad de Auditoria Medico-Legal | `100% inmutable (0 updates/deletes)` | **100% (Trigger Enforcement)** | Cumplido |
 | **KPI-04** | Ventana de Idempotencia por Sala | `60 segundos exactos` | **60s (Query Indexado)** | Cumplido |
-| **KPI-05** | Cobertura de Pruebas Unitarias/Integracion | `100% Casos Criticos` | **12/12 Tests (100%)** | Cumplido |
+| **KPI-05** | Cobertura de Pruebas Unitarias/Integracion | `100% Casos Criticos` | **17/17 Tests (100%)** | Cumplido |
 
 ---
 
