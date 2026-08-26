@@ -111,8 +111,8 @@
       pintar();
     });
 
-    document.getElementById('expCsv').addEventListener('click', () => App.ui.toast({ titulo: 'Reporte CSV generado', tipo: 'exito' }));
-    document.getElementById('expPdf').addEventListener('click', () => App.ui.toast({ titulo: 'Reporte PDF generado', tipo: 'exito' }));
+    document.getElementById('expCsv').addEventListener('click', () => descargarCsv(filtrar()));
+    document.getElementById('expPdf').addEventListener('click', () => descargarPdf(filtrar()));
 
     pintar();
   }
@@ -272,6 +272,144 @@
       const p = App.data.pacientes.find(pp => pp.id === l.pacienteId);
       return p && p.areaId === areaId && l.origen === origen;
     }).length;
+  }
+
+  // ─── Exportación CSV (RFC 4180 + BOM UTF-8 para Excel) ───
+  const CSV_HEADERS = [
+    'id',
+    'fecha_inicio',
+    'fecha_fin',
+    'tipo',
+    'estado',
+    'origen',
+    'area',
+    'paciente',
+    'enfermero',
+    'tiempo_respuesta_seg',
+  ];
+
+  function escapar(valor) {
+    if (valor == null) return '';
+    const s = String(valor);
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
+  function filaCsv(llamado) {
+    const paciente = App.data.pacientes.find(p => p.id === llamado.pacienteId);
+    const area = paciente && App.data.areas.find(a => a.id === paciente.areaId);
+    const enfermero = App.data.usuarios.find(u => u.id === llamado.enfermeroId);
+    return [
+      llamado.id,
+      llamado.horaInicio,
+      llamado.horaFin || '',
+      llamado.tipo,
+      llamado.estado,
+      llamado.origen,
+      area?.nombre || '',
+      paciente?.nombre || '',
+      enfermero?.nombre || '',
+      llamado.tiempoRespuestaSeg ?? '',
+    ].map(escapar).join(',');
+  }
+
+  function descargarCsv(lista) {
+    if (!lista.length) {
+      App.ui.toast({ titulo: 'Sin datos para exportar con los filtros actuales', tipo: 'aviso' });
+      return;
+    }
+
+    const contenido = [CSV_HEADERS.join(','), ...lista.map(filaCsv)].join('\r\n');
+    // BOM UTF-8 para que Excel detecte tildes/eñes correctamente.
+    const blob = new Blob(['﻿' + contenido], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    const nombre = `reporte-codigo-azul_${new Date().toISOString().slice(0, 10)}.csv`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nombre;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+
+    App.ui.toast({ titulo: `Reporte CSV descargado (${lista.length} filas)`, tipo: 'exito' });
+  }
+
+  // ─── Exportación PDF (delegada al helper App.pdf.descargarTabla) ───
+  const PDF_COLS = [
+    { key: 'id',          label: 'ID',         w: 20 },
+    { key: 'horaInicio',  label: 'Fecha/Hora', w: 34 },
+    { key: 'tipo',        label: 'Tipo',       w: 20 },
+    { key: 'estado',      label: 'Estado',     w: 22 },
+    { key: 'origen',      label: 'Origen',     w: 18 },
+    { key: 'area',        label: 'Área',       w: 20 },
+    { key: 'enfermero',   label: 'Enfermero',  w: 30 },
+    { key: 'tResp',       label: 'T. Resp.',   w: 18, align: 'right' },
+  ];
+
+  function filaHistorial(llamado) {
+    const paciente = App.data.pacientes.find(p => p.id === llamado.pacienteId);
+    const area = paciente && App.data.areas.find(a => a.id === paciente.areaId);
+    const enfermero = App.data.usuarios.find(u => u.id === llamado.enfermeroId);
+    return {
+      id:         llamado.id,
+      horaInicio: String(llamado.horaInicio).replace('T', ' ').slice(0, 16),
+      tipo:       llamado.tipo === 'codigo-azul' ? 'Código Azul' : llamado.tipo,
+      estado:     llamado.estado,
+      origen:     llamado.origen,
+      area:       area?.abrev || area?.nombre || '',
+      enfermero:  enfermero?.nombre || '',
+      tResp:      llamado.tiempoRespuestaSeg != null ? App.ui.segundosADuracion(llamado.tiempoRespuestaSeg) : '',
+    };
+  }
+
+  function filtrosLegibles() {
+    const partes = [];
+    if (state.fDesde) partes.push(`desde ${state.fDesde}`);
+    if (state.fHasta) partes.push(`hasta ${state.fHasta}`);
+    if (state.origen !== 'todos') {
+      const o = App.data.origenesLlamado.find(x => x.id === state.origen);
+      partes.push(`origen: ${o?.nombre || state.origen}`);
+    }
+    if (state.tipo !== 'todos') partes.push(`tipo: ${state.tipo}`);
+    if (state.enfermero !== 'todos') {
+      const e = App.data.usuarios.find(u => u.id === state.enfermero);
+      partes.push(`enfermero: ${e?.nombre || state.enfermero}`);
+    }
+    if (state.areasSel.size) {
+      const nombres = [...state.areasSel]
+        .map(id => App.data.areas.find(a => a.id === id)?.abrev)
+        .filter(Boolean);
+      partes.push(`áreas: ${nombres.join(', ')}`);
+    }
+    return partes.length ? partes.join(' · ') : 'sin filtros aplicados';
+  }
+
+  function descargarPdf(lista) {
+    if (!lista.length) {
+      App.ui.toast({ titulo: 'Sin datos para exportar con los filtros actuales', tipo: 'aviso' });
+      return;
+    }
+
+    const atendidos = lista.filter(l => l.estado === 'atendido').length;
+    const tiempos = lista.filter(l => l.tiempoRespuestaSeg != null).map(l => l.tiempoRespuestaSeg);
+    const promResp = tiempos.length ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : 0;
+    const tasa = lista.length ? Math.round((atendidos / lista.length) * 100) : 0;
+
+    const ok = App.pdf.descargarTabla({
+      titulo:        'Reporte estadístico — Código Azul',
+      nombreArchivo: `reporte-codigo-azul_${new Date().toISOString().slice(0, 10)}.pdf`,
+      filtros:       filtrosLegibles(),
+      kpis: [
+        { t: 'Total de llamados',      v: String(lista.length) },
+        { t: 'Tasa de atención',       v: `${tasa}%` },
+        { t: 'Tiempo prom. respuesta', v: App.ui.segundosADuracion(promResp) },
+      ],
+      columnas: PDF_COLS,
+      filas:    lista.map(filaHistorial),
+    });
+
+    if (ok) App.ui.toast({ titulo: `Reporte PDF descargado (${lista.length} llamados)`, tipo: 'exito' });
   }
 
   App.pages.reportes = { titulo: 'Reportes', render };

@@ -32,27 +32,127 @@
     });
   }
 
-  function exportar(formato) {
-    App.ui.toast({ titulo: `Exportación ${formato.toUpperCase()} generada`, msj: 'Archivo listo para descargar (demo).', tipo: 'exito' });
-    // Descarga dummy de CSV (funciona genuinamente para el CSV)
-    if (formato === 'csv') {
-      const lista = filtrar();
-      const filas = [
-        ['id','fecha','tipo','origen','paciente','area','habitacion','duracion(seg)','enfermero','estado','tiempoRespuesta(seg)'].join(','),
-        ...lista.map(l => {
-          const p = App.data.pacientes.find(pp => pp.id === l.pacienteId);
-          const a = App.data.areas.find(aa => aa.id === p.areaId);
-          const e = App.data.usuarios.find(u => u.id === l.enfermeroId);
-          return [l.id, l.horaInicio, l.tipo, l.origen, `"${p.nombre} ${p.apellido}"`, a.nombre, p.habitacion, l.duracionSeg, `"${e?.nombre || ''}"`, l.estado, l.tiempoRespuestaSeg || ''].join(',');
-        }),
-      ].join('\n');
-      const blob = new Blob([filas], { type: 'text/csv;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'historial-codigo-azul.csv';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+  // ─── Definición de columnas para PDF (11 columnas, A4 landscape) ───
+  const PDF_COLS = [
+    { key: 'fecha',     label: 'Fecha',     w: 20 },
+    { key: 'inicio',    label: 'Inicio',    w: 14 },
+    { key: 'fin',       label: 'Fin',       w: 14 },
+    { key: 'duracion',  label: 'Dur.',      w: 14, align: 'right' },
+    { key: 'paciente',  label: 'Paciente',  w: 40 },
+    { key: 'area',      label: 'Área',      w: 22 },
+    { key: 'hab',       label: 'Hab.',      w: 14 },
+    { key: 'origen',    label: 'Origen',    w: 18 },
+    { key: 'tipo',      label: 'Tipo',      w: 22 },
+    { key: 'enfermero', label: 'Enfermero', w: 32 },
+    { key: 'estado',    label: 'Estado',    w: 20 },
+    { key: 'tResp',     label: 'T. Resp.',  w: 14, align: 'right' },
+  ];
+
+  function normalizarFila(l) {
+    const p = App.data.pacientes.find(pp => pp.id === l.pacienteId);
+    const a = p && App.data.areas.find(aa => aa.id === p.areaId);
+    const e = App.data.usuarios.find(u => u.id === l.enfermeroId);
+    return {
+      fecha:     App.ui.formatearFecha(l.horaInicio),
+      inicio:    App.ui.formatearHora(l.horaInicio),
+      fin:       App.ui.formatearHora(l.horaFin),
+      duracion:  App.ui.segundosADuracion(l.duracionSeg),
+      paciente:  p ? `${p.nombre} ${p.apellido}` : '—',
+      area:      a?.nombre || '',
+      hab:       p ? `${p.habitacion}/${p.cama}` : '',
+      origen:    l.origen,
+      tipo:      l.tipo === 'codigo-azul' ? 'Código Azul' : l.tipo,
+      enfermero: e?.nombre || '—',
+      estado:    l.estado,
+      tResp:     l.tiempoRespuestaSeg ? App.ui.segundosADuracion(l.tiempoRespuestaSeg) : '',
+    };
+  }
+
+  function filtrosLegibles() {
+    const partes = [];
+    if (state.fDesde) partes.push(`desde ${state.fDesde}`);
+    if (state.fHasta) partes.push(`hasta ${state.fHasta}`);
+    if (state.fArea !== 'todas') {
+      const a = App.data.areas.find(x => x.id === state.fArea);
+      partes.push(`área: ${a?.nombre || state.fArea}`);
     }
+    if (state.fOrigen !== 'todos') partes.push(`origen: ${state.fOrigen}`);
+    if (state.fTipo !== 'todos') partes.push(`tipo: ${state.fTipo}`);
+    if (state.fEstado !== 'todos') partes.push(`estado: ${state.fEstado}`);
+    if (state.fEnfermero !== 'todos') {
+      const e = App.data.usuarios.find(u => u.id === state.fEnfermero);
+      partes.push(`enfermero: ${e?.nombre || state.fEnfermero}`);
+    }
+    if (state.q) partes.push(`búsqueda: "${state.q}"`);
+    return partes.length ? partes.join(' · ') : 'sin filtros aplicados';
+  }
+
+  function descargarCsv(lista) {
+    const escapar = (v) => {
+      if (v == null) return '';
+      const s = String(v);
+      return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const cabeceras = ['id','fecha','tipo','origen','paciente','area','habitacion','duracion_seg','enfermero','estado','tiempo_respuesta_seg'];
+    const filas = lista.map(l => {
+      const p = App.data.pacientes.find(pp => pp.id === l.pacienteId);
+      const a = p && App.data.areas.find(aa => aa.id === p.areaId);
+      const e = App.data.usuarios.find(u => u.id === l.enfermeroId);
+      return [
+        l.id, l.horaInicio, l.tipo, l.origen,
+        p ? `${p.nombre} ${p.apellido}` : '',
+        a?.nombre || '',
+        p ? p.habitacion : '',
+        l.duracionSeg,
+        e?.nombre || '',
+        l.estado,
+        l.tiempoRespuestaSeg || '',
+      ].map(escapar).join(',');
+    });
+    // BOM UTF-8 para Excel.
+    const blob = new Blob(['﻿' + [cabeceras.join(','), ...filas].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `historial-codigo-azul_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    App.ui.toast({ titulo: `Historial CSV descargado (${lista.length} filas)`, tipo: 'exito' });
+  }
+
+  function descargarPdf(lista) {
+    const atendidos = lista.filter(l => l.estado === 'atendido').length;
+    const noAtendidos = lista.filter(l => l.estado === 'no-atendido').length;
+    const tiempos = lista.filter(l => l.tiempoRespuestaSeg != null).map(l => l.tiempoRespuestaSeg);
+    const promResp = tiempos.length ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : 0;
+
+    const ok = App.pdf.descargarTabla({
+      titulo:        'Historial de llamados — Código Azul',
+      nombreArchivo: `historial-codigo-azul_${new Date().toISOString().slice(0, 10)}.pdf`,
+      filtros:       filtrosLegibles(),
+      kpis: [
+        { t: 'Total registros',        v: String(lista.length) },
+        { t: 'Atendidos',              v: String(atendidos) },
+        { t: 'No atendidos',           v: String(noAtendidos) },
+        { t: 'Tiempo prom. respuesta', v: App.ui.segundosADuracion(promResp) },
+      ],
+      columnas: PDF_COLS,
+      filas:    lista.map(normalizarFila),
+    });
+
+    if (ok) App.ui.toast({ titulo: `Historial PDF descargado (${lista.length} llamados)`, tipo: 'exito' });
+  }
+
+  function exportar(formato) {
+    const lista = filtrar();
+    if (!lista.length) {
+      App.ui.toast({ titulo: 'Sin datos para exportar con los filtros actuales', tipo: 'aviso' });
+      return;
+    }
+    if (formato === 'csv') descargarCsv(lista);
+    else if (formato === 'pdf') descargarPdf(lista);
   }
 
   function render(cont) {

@@ -38,6 +38,15 @@ class SonidoCritico {
     try { this._asegurarCtx(); } catch { /* silencioso */ }
   }
 
+  /**
+   * Indica si el AudioContext no puede reproducir sonido por la política de
+   * autoplay del navegador (no se creó todavía o está suspendido).
+   * @returns {boolean}
+   */
+  estaSuspendido() {
+    return !this.ctx || this.ctx.state === "suspended";
+  }
+
   async iniciar() {
     if (this.sonando) return;
     const ctx = this._asegurarCtx();

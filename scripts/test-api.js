@@ -124,7 +124,8 @@ const runAllTests = async () => {
   logStep(6, 'Monitoreo de Guardia (GET /api/v1/incidentes/activos)');
   const activosRes = await get('/incidentes/activos', guardiaToken);
   assert(activosRes.status === 200, 'Guardia consulta lista de activos');
-  const incidenteEncontrado = activosRes.data.data.find((i) => i.id === incidenteId);
+  const listaActivos = activosRes.data.data.incidentes || activosRes.data.data;
+  const incidenteEncontrado = (Array.isArray(listaActivos) ? listaActivos : []).find((i) => i.id === incidenteId);
   assert(Boolean(incidenteEncontrado), 'Incidente creado figura en el panel de guardia');
 
   // 7. Confirmación de Asistencia (ACK Primario)

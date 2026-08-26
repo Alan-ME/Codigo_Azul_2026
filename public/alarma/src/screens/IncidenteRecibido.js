@@ -21,8 +21,9 @@ export async function montarIncidenteRecibido(contenedor, params, signal) {
     return;
   }
 
-  // Asegurar que suena
+  // Asegurar que suena y vibra hasta que el reanimador confirme o silencie.
   Sonido.iniciar().catch(() => {});
+  Haptica.iniciarAlarma();
   Notificacion.pedirPermiso();
 
   let incidente = null;
@@ -47,8 +48,11 @@ export async function montarIncidenteRecibido(contenedor, params, signal) {
   };
   Transporte.addEventListener("incidente:actualizado", alActualizado, { signal });
 
-  // Cuando salimos de la pantalla, detener sonido
-  signal.addEventListener("abort", () => Sonido.detener());
+  // Cuando salimos de la pantalla, detener sonido y vibración.
+  signal.addEventListener("abort", () => {
+    Sonido.detener();
+    Haptica.detenerAlarma();
+  });
 
   function render() {
     pantalla.innerHTML = "";
@@ -89,6 +93,7 @@ export async function montarIncidenteRecibido(contenedor, params, signal) {
       try {
         const actualizado = await Api.confirmarAsistencia(incidente.id);
         incidente = actualizado;
+        Haptica.detenerAlarma();
         Haptica.confirmacion();
         Sonido.detener();
         toast("Asistencia confirmada", { tipo: "exito" });
@@ -107,6 +112,7 @@ export async function montarIncidenteRecibido(contenedor, params, signal) {
     });
     btnSilenciar.addEventListener("click", () => {
       Sonido.detener();
+      Haptica.detenerAlarma();
       toast("Alarma silenciada — el incidente sigue activo", { tipo: "aviso" });
     });
 
@@ -118,6 +124,7 @@ export async function montarIncidenteRecibido(contenedor, params, signal) {
     });
     btnVolver.addEventListener("click", () => {
       Sonido.detener();
+      Haptica.detenerAlarma();
       router.reemplazar("reanimador-espera");
     });
 

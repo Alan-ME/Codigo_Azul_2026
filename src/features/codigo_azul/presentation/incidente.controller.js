@@ -8,6 +8,7 @@ import { ApiError } from '../../../core/helpers/api-error.js';
 import { activarCodigoAzulUseCase } from '../use_cases/activar-codigo-azul.use-case.js';
 import { confirmarAckUseCase } from '../use_cases/confirmar-ack.use-case.js';
 import { cancelarIncidenteUseCase } from '../use_cases/cancelar-incidente.use-case.js';
+import { resolverIncidenteUseCase } from '../use_cases/resolver-incidente.use-case.js';
 import { listarActivosUseCase } from '../use_cases/listar-activos.use-case.js';
 
 export class IncidenteController {
@@ -77,11 +78,47 @@ export class IncidenteController {
   });
 
   /**
+   * PUT /api/v1/incidentes/:id/resolver
+   */
+  resolver = asyncHandler(async (req, res) => {
+    const incidenteId = parseInt(req.params.id, 10);
+    if (Number.isNaN(incidenteId) || incidenteId <= 0) {
+      throw ApiError.badRequest('El ID del incidente debe ser un entero positivo.');
+    }
+
+    const { observaciones } = req.body;
+    const user = req.user;
+
+    const result = await resolverIncidenteUseCase.execute({
+      incidenteId,
+      observaciones,
+      user,
+    });
+
+    return sendSuccess(res, result, 200, 'Incidente resuelto y ciclo clinico cerrado.');
+  });
+
+  /**
    * GET /api/v1/incidentes/activos
    */
   listarActivos = asyncHandler(async (req, res) => {
-    const incidentes = await listarActivosUseCase.execute();
-    return sendSuccess(res, incidentes, 200, 'Listado de incidentes activos.');
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+
+    const todos = await listarActivosUseCase.execute();
+    const total = todos.length;
+    const offset = (page - 1) * limit;
+    const pagina = todos.slice(offset, offset + limit);
+
+    return sendSuccess(res, {
+      incidentes: pagina,
+      paginacion: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    }, 200, 'Listado de incidentes activos.');
   });
 
   /**

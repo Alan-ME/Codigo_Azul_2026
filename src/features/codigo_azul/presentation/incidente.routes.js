@@ -43,7 +43,14 @@ router.post(
   incidenteController.cancelar
 );
 
-// 6. Detalle de incidente con historial inmutable de auditoría
+// 6. Resolución clínica: cierra el ciclo del incidente (EN_ATENCION -> RESUELTO)
+router.put(
+  '/:id/resolver',
+  requireRole('REANIMADOR_MEDICO', 'OPERADOR_GUARDIA', 'ADMINISTRADOR'),
+  incidenteController.resolver
+);
+
+// 7. Detalle de incidente con historial inmutable de auditoría
 router.get('/:id', incidenteController.obtenerDetalle);
 
 export default router;
