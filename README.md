@@ -9,13 +9,7 @@
 
 > **Institución**: Escuela de Educación Secundaria Técnica N.º 2 "Educación y Trabajo"  
 > **Certamen**: Olimpiadas Nacionales de Educación Técnico Profesional (ONETP 2026)  
-> **Especialidad**: Informática / Programación  
-> **Equipo y Roles**:
-> - **Ivan Ismael Cardozo**: Backend Core & Database Architect Lead (PostgreSQL 18, ACID, Triggers Inmutables)
-> - **Franco Sarraute**: Frontend Lead & Mobile Application Engineer (PWA Alarma, Dashboard PC, Sockets)
-> - **Alex Heredia**: Push Notifications & Telemetry Lead (Firebase Admin SDK, FCM, Doze Mode)
-> - **Marcos Silvani**: Lead Systems Analyst & Requirements Engineer (UML 2.5, IEEE 830, ISO 25010)
-> - **Alan Martinez**: Líder de Arquitectura y Coordinador de QA  
+
 > **Patrón Arquitectónico**: Clean Architecture + Feature-First + Repository Pattern  
 
 ---
