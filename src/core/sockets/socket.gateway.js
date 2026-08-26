@@ -58,7 +58,7 @@ export function initSocketGateway(httpServer) {
 
   const io = new Server(httpServer, {
     cors: {
-      origin: '*',
+      origin: config.corsOrigin || 'http://localhost:3000',
       methods: ['GET', 'POST', 'PUT'],
     },
   });
@@ -108,9 +108,7 @@ export function initSocketGateway(httpServer) {
     const incNormalizado = normalizarIncidente(payload);
     console.log(`[SOCKET] Retransmitiendo nuevo incidente #${incNormalizado.id} a reanimadores y guardia.`);
 
-    // Canales compatibles
     io.emit('incidente:nuevo', incNormalizado);
-    io.emit('codigo_azul_alerta', payload);
   });
 
   // 2. ACK de asistencia confirmado por reanimador
@@ -119,7 +117,6 @@ export function initSocketGateway(httpServer) {
     console.log(`[SOCKET] Retransmitiendo ACK de incidente #${incNormalizado.id} (Latencia: ${incNormalizado.latencia}s).`);
 
     io.emit('incidente:actualizado', incNormalizado);
-    io.emit('codigo_azul_atendido', payload);
   });
 
   // 3. Cancelación de incidente
@@ -127,8 +124,15 @@ export function initSocketGateway(httpServer) {
     const incNormalizado = normalizarIncidente(payload);
     console.log(`[SOCKET] Retransmitiendo cancelación de incidente #${incNormalizado.id}.`);
 
-    io.emit('incidente:actualizado', incNormalizado);
-    io.emit('codigo_azul_cancelado', payload);
+    io.emit('incidente:cancelado', incNormalizado);
+  });
+
+  // 4. Resolución clínica del incidente
+  appEvents.on('incidente:resuelto', (payload) => {
+    const incNormalizado = normalizarIncidente(payload);
+    console.log(`[SOCKET] Retransmitiendo resolucion de incidente #${incNormalizado.id}.`);
+
+    io.emit('incidente:resuelto', incNormalizado);
   });
 
   ioInstance = io;

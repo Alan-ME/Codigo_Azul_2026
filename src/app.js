@@ -11,6 +11,8 @@ import { config } from './core/config/env.js';
 import { requestLogger } from './core/middlewares/request-logger.middleware.js';
 import { errorHandler } from './core/middlewares/error-handler.middleware.js';
 import { sendSuccess } from './core/helpers/api-response.js';
+import { query } from './core/config/db.js';
+import { testFirebaseConnection } from './config/firebase.config.js';
 
 // -- Feature Routers y Middlewares ────────────────────────────
 import authRoutes from './features/auth/presentation/auth.routes.js';
@@ -34,7 +36,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc:  ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        scriptSrc:  ["'self'", "'unsafe-inline'"],
         styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc:    ["'self'", "https://fonts.gstatic.com", "data:"],
         imgSrc:     ["'self'", "data:", "blob:", "https://images.unsplash.com", "https://*.unsplash.com", "https:"],
@@ -48,18 +50,39 @@ app.use(cors({ origin: config.corsOrigin }));   // CORS configurado
 app.use(express.json({ limit: '1mb' }));        // Parseo de JSON
 app.use(requestLogger);                         // Log de requests
 
-// ── Health Check ─────────────────────────────────────────────
-app.get('/api/v1/health', (req, res) => {
+// ── Health Check Profundo ────────────────────────────────────
+app.get('/api/v1/health', async (req, res) => {
+  let dbStatus = 'offline';
+  let fcmStatus = 'offline';
+
+  try {
+    await query('SELECT 1');
+    dbStatus = 'online';
+  } catch (_) {
+    dbStatus = 'offline';
+  }
+
+  try {
+    fcmStatus = (await testFirebaseConnection()) ? 'online' : 'offline';
+  } catch (_) {
+    fcmStatus = 'offline';
+  }
+
+  const overall = dbStatus === 'online' ? 'online' : 'degraded';
+
   sendSuccess(res, {
-    status:    'online',
+    status:    overall,
     timestamp: new Date().toISOString(),
     version:   '1.0.0',
+    services: {
+      database: dbStatus,
+      firebase: fcmStatus,
+    },
   });
 });
 
 // -- Rutas por Feature ────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/usuarios', authRoutes);
 app.use('/api/v1/incidentes', incidenteRoutes);
 app.use('/api/v1/fcm', fcmRoutes);
 app.get('/api/v1/ubicaciones', authenticateJWT, incidenteController.listarUbicaciones);

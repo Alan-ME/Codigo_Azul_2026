@@ -2,6 +2,12 @@
 node_modules/
 */node_modules/
 
+# Python cache
+__pycache__/
+*/__pycache__/
+*.pyc
+.pytest_cache/
+
 # Variables de entorno y secretos
 .env
 .env.local

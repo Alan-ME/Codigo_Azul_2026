@@ -29,7 +29,45 @@ export class DespacharPushUseCase {
     const titulo = `🚨 CÓDIGO AZUL: ${edificio} (Piso ${piso})`;
     const cuerpo = `Sector: ${sector} — Cama ${cama}. Asistencia médica urgente requerida.`;
 
-    console.log(`[FCM] [DISPATCH] Iniciando despacho de alarma crítica para Incidente #${incidenteId}...`);
+    console.log(`[FCM] [DISPATCH] Iniciando despacho de alarma critica para Incidente #${incidenteId}...`);
+
+    // Helper: construye el payload de notificacion critica compartido
+    // entre el envio por topic y el envio multicast directo.
+    const construirPayloadCritico = () => ({
+      notification: {
+        title: titulo,
+        body:  cuerpo,
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId:             'codigo_azul_critico',
+          sound:                 'alarma_critica',
+          priority:              'max',
+          visibility:            'public',
+          defaultVibrateTimings: true,
+        },
+      },
+      apns: {
+        headers: { 'apns-priority': '10' },
+        payload: {
+          aps: {
+            contentAvailable: true,
+            sound:            'alarma_critica.caf',
+          },
+        },
+      },
+      data: {
+        incidenteId:  String(incidenteId),
+        codigoUUID:   String(data.codigoUUID || data.codigo_uuid || ''),
+        edificio:     String(edificio),
+        piso:         String(piso),
+        sectorSala:   String(sector),
+        cama:         String(cama),
+        activadoPor:  String(activador.nombre || 'Personal Medico'),
+        timestamp:    new Date().toISOString(),
+      },
+    });
 
     // 1. Obtener tokens de los destinatarios (Reanimadores y Guardia)
     const destinatarios = await fcmRepository.obtenerTokensActivosPorRoles([
@@ -40,7 +78,7 @@ export class DespacharPushUseCase {
 
     const tokens = destinatarios.map((d) => d.token_fcm);
 
-    // Si Firebase no está inicializado o no hay tokens, registramos auditoría y salimos limpiamente
+    // Si Firebase no esta inicializado o no hay tokens, registramos auditoria y salimos limpiamente
     if (admin.apps.length === 0) {
       console.warn('[FCM] [WARN] Firebase Admin SDK no disponible — push notifications omitidas.');
       return { total: 0, exitosos: 0, fallidos: 0, latenciaDespachoMs: 0 };
@@ -50,87 +88,24 @@ export class DespacharPushUseCase {
     let fallidos = 0;
     const errores = [];
 
-    // 2. Despacho a través de Topic general
+    // 2. Despacho a traves de Topic general
     try {
       const topicMessage = {
         topic: 'codigo_azul',
-        notification: {
-          title: titulo,
-          body:  cuerpo,
-        },
-        android: {
-          priority: 'high',
-          notification: {
-            channelId:             'codigo_azul_critico',
-            sound:                 'alarma_critica',
-            priority:              'max',
-            visibility:            'public',
-            defaultVibrateTimings: true,
-          },
-        },
-        apns: {
-          headers: { 'apns-priority': '10' },
-          payload: {
-            aps: {
-              contentAvailable: true,
-              sound:            'alarma_critica.caf',
-            },
-          },
-        },
-        data: {
-          incidenteId:  String(incidenteId),
-          codigoUUID:   String(data.codigoUUID || data.codigo_uuid || ''),
-          edificio:     String(edificio),
-          piso:         String(piso),
-          sectorSala:   String(sector),
-          cama:         String(cama),
-          activadoPor:  String(activador.nombre || 'Personal Médico'),
-          timestamp:    new Date().toISOString(),
-        },
+        ...construirPayloadCritico(),
       };
 
       await admin.messaging().send(topicMessage);
-      console.log(`[FCM] [OK] Notificación enviada al topic 'codigo_azul'.`);
+      console.log(`[FCM] [OK] Notificacion enviada al topic 'codigo_azul'.`);
     } catch (topicErr) {
-      console.warn(`[FCM] [WARN] Error en envío a topic 'codigo_azul': ${topicErr.message}`);
+      console.warn(`[FCM] [WARN] Error en envio a topic 'codigo_azul': ${topicErr.message}`);
     }
 
     // 3. Despacho Multicast directo a tokens registrados
     if (tokens.length > 0) {
       const multicastPayload = {
         tokens,
-        notification: {
-          title: titulo,
-          body:  cuerpo,
-        },
-        android: {
-          priority: 'high',
-          notification: {
-            channelId:             'codigo_azul_critico',
-            sound:                 'alarma_critica',
-            priority:              'max',
-            visibility:            'public',
-            defaultVibrateTimings: true,
-          },
-        },
-        apns: {
-          headers: { 'apns-priority': '10' },
-          payload: {
-            aps: {
-              contentAvailable: true,
-              sound:            'alarma_critica.caf',
-            },
-          },
-        },
-        data: {
-          incidenteId:  String(incidenteId),
-          codigoUUID:   String(data.codigoUUID || data.codigo_uuid || ''),
-          edificio:     String(edificio),
-          piso:         String(piso),
-          sectorSala:   String(sector),
-          cama:         String(cama),
-          timestamp:    new Date().toISOString(),
-        },
+        ...construirPayloadCritico(),
       };
 
       try {
