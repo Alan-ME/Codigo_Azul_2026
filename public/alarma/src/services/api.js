@@ -104,11 +104,16 @@ export const Api = {
   },
 
   async listarIncidentesActivos() {
-    return peticion("GET", "/incidentes/activos");
+    const resp = await peticion("GET", "/incidentes/activos");
+    return Array.isArray(resp) ? resp : (resp?.incidentes || []);
   },
 
   async registrarTokenFcm(token) {
-    return peticion("POST", "/usuarios/token-fcm", { token });
+    return peticion("POST", "/fcm/token", { token, plataforma: "ANDROID" });
+  },
+
+  async desregistrarTokenFcm(token) {
+    return peticion("DELETE", "/fcm/token", { token });
   },
 
   ErrorApi,

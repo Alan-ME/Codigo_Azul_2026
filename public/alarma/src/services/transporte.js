@@ -57,6 +57,14 @@ class TransporteRealtime extends EventTarget {
     this.socket.on("incidente:actualizado", (inc) => {
       this.dispatchEvent(new CustomEvent("incidente:actualizado", { detail: inc }));
     });
+    this.socket.on("incidente:cancelado", (inc) => {
+      this.dispatchEvent(new CustomEvent("incidente:cancelado", { detail: inc }));
+      this.dispatchEvent(new CustomEvent("incidente:actualizado", { detail: inc }));
+    });
+    this.socket.on("incidente:resuelto", (inc) => {
+      this.dispatchEvent(new CustomEvent("incidente:resuelto", { detail: inc }));
+      this.dispatchEvent(new CustomEvent("incidente:actualizado", { detail: inc }));
+    });
     this.socket.on("bienvenida", (payload) => {
       this.dispatchEvent(new CustomEvent("bienvenida", { detail: payload }));
     });
