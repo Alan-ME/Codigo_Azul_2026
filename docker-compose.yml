@@ -1,0 +1,54 @@
+# ─────────────────────────────────────────────────────────────
+# docker-compose.yml — Plataforma Hospitalaria Código Azul 2026
+# Orquestación de Backend Node.js + Base de Datos PostgreSQL
+# ─────────────────────────────────────────────────────────────
+services:
+  # Base de Datos Relacional PostgreSQL
+  db:
+    image: postgres:17-alpine
+    container_name: codigo_azul_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: codigo_azul_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d codigo_azul_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Servidor Backend Express + Socket.IO + Firebase Admin SDK
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codigo_azul_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      CORS_ORIGIN: "http://localhost:3000"
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: codigo_azul_db
+      DB_USER: postgres
+      DB_PASSWORD: admin
+      JWT_SECRET: super_secret_jwt_key_codigo_azul_2026
+      JWT_EXPIRES_IN: 8h
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-proyecto---olimpiada-2026}
+      FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL:-firebase-adminsdk-fbsvc@proyecto---olimpiada-2026.iam.gserviceaccount.com}
+      FCM_PRIVATE_KEY: ${FCM_PRIVATE_KEY:-""}
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+    driver: local
