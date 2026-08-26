@@ -70,4 +70,10 @@ export const testConnection = async () => {
   }
 };
 
+/**
+ * Cierra ordenadamente el pool de conexiones.
+ * @returns {Promise<void>}
+ */
+export const closePool = () => pool.end();
+
 export default pool;
