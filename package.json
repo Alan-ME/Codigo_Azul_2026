@@ -4,6 +4,9 @@
   "description": "Plataforma Inteligente Hospitalaria — Notificación Crítica de Código Azul (Backend Core & DB)",
   "type": "module",
   "main": "src/server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",

@@ -7,6 +7,8 @@ services:
     startCommand: npm start
     healthCheckPath: /api/v1/health
     envVars:
+      - key: NODE_VERSION
+        value: "20.18.0"
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -14,13 +16,13 @@ services:
       - key: CORS_ORIGIN
         value: "*"
       - key: DB_HOST
-        value: db.qiofdrrnizzopzhwklfi.supabase.co
+        value: aws-0-sa-east-1.pooler.supabase.com
       - key: DB_PORT
         value: "5432"
       - key: DB_NAME
         value: postgres
       - key: DB_USER
-        value: postgres
+        value: postgres.qiofdrrnizzopzhwklfi
       - key: DB_PASSWORD
         value: Tesobnemcp123
       - key: JWT_SECRET
