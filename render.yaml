@@ -3,7 +3,7 @@ services:
     name: codigo-azul-backend
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npm --prefix codigo-azul-web install --include=dev && npm run build
     startCommand: npm run db:migrate && npm run db:seed && npm start
     healthCheckPath: /api/v1/health
     envVars:
