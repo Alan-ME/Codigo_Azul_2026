@@ -25,28 +25,33 @@ export class LoginUseCase {
       throw ApiError.badRequest('El email y la contraseña son requeridos.');
     }
 
-    // Mapeo de alias amigables para simuladores móviles y accesos rápidos de demo
-    const ALIAS_MAP = {
-      enfermero:  'medico.activador@hospital.gob.ar',
-      medico:     'medico.activador@hospital.gob.ar',
-      reanimador: 'reanimador1@hospital.gob.ar',
-      admin:      'admin@hospital.gob.ar',
-      guardia:    'guardia@hospital.gob.ar',
-    };
-    const targetEmail = ALIAS_MAP[email.trim().toLowerCase()] || email.trim();
+    // Normalizar alias de demo (solo en desarrollo)
+    // En produccion, los alias estan deshabilitados y se requiere el email real.
+    const isDev = config.nodeEnv === 'development';
+    let targetEmail = email;
+
+    if (isDev) {
+      const ALIAS_MAP = {
+        enfermero:  'medico.activador@hospital.gob.ar',
+        reanimador: 'reanimador1@hospital.gob.ar',
+        admin:      'admin@hospital.gob.ar',
+        guardia:    'guardia@hospital.gob.ar',
+      };
+      targetEmail = ALIAS_MAP[email.toLowerCase()] || email;
+    }
 
     // 1. Buscar usuario en base de datos
     const user = await this.repository.findByEmail(targetEmail);
     if (!user) {
-      // Seguridad: mensaje genérico para evitar enumeración de usuarios
-      throw ApiError.unauthorized('Credenciales inválidas o usuario inactivo.');
+      // Seguridad: mensaje generico para evitar enumeracion de usuarios
+      throw ApiError.unauthorized('Credenciales invalidas o usuario inactivo.');
     }
 
-    // 2. Comparar hash de contraseña con bcrypt
+    // 2. Comparar hash de contrasena con bcrypt
     let isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
-    // Fallback de contraseñas de prueba para simulador móvil / jurado
-    if (!isPasswordValid && (password === 'azul123' || password === 'Password123!')) {
+    // Fallback de contrasena de demo (solo en desarrollo, nunca en produccion)
+    if (!isPasswordValid && isDev && password === 'azul123') {
       isPasswordValid = true;
     }
 

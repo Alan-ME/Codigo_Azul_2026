@@ -43,21 +43,14 @@ router.post(
   incidenteController.cancelar
 );
 
-// 6. Registro de hitos clínicos intermedios (AED, RCP, Adrenalina)
-router.post(
-  '/:id/evento-clinico',
-  requireRole('REANIMADOR_MEDICO', 'MEDICO_ACTIVADOR', 'OPERADOR_GUARDIA', 'ADMINISTRADOR'),
-  incidenteController.registrarEventoClinico
-);
-
-// 7. Resolución clínica: cierra el ciclo del incidente (EN_ATENCION -> RESUELTO)
+// 6. Resolución clínica: cierra el ciclo del incidente (EN_ATENCION -> RESUELTO)
 router.put(
   '/:id/resolver',
   requireRole('REANIMADOR_MEDICO', 'OPERADOR_GUARDIA', 'ADMINISTRADOR'),
   incidenteController.resolver
 );
 
-// 8. Detalle de incidente con historial inmutable de auditoría
+// 7. Detalle de incidente con historial inmutable de auditoría
 router.get('/:id', incidenteController.obtenerDetalle);
 
 export default router;

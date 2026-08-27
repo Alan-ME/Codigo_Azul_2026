@@ -28,27 +28,23 @@ function obtenerSalasDeRol(rol) {
 }
 
 /**
- * Normaliza el payload de incidente para compatibilidad con la app móvil y el dashboard web.
+ * Normaliza el payload de incidente para compatibilidad con la app móvil.
  * @param {object} rawData
  * @returns {object}
  */
 function normalizarIncidente(rawData) {
   const d = rawData.data || rawData;
   return {
-    id:                          d.incidenteId || d.id,
-    codigoUUID:                  d.codigoUUID || d.codigo_uuid,
-    camaId:                      d.camaId || d.ubicacionId || d.ubicacion?.id,
-    estado:                      (d.estado || 'ACTIVADO').toLowerCase().replace('_', '-'),
-    estadoRaw:                   d.estado,
-    ubicacion:                   d.ubicacion,
-    activadoPor:                 d.activadoPor,
-    reanimador:                  d.reanimador,
-    resultadoClinico:            d.resultadoClinico,
-    resultadoClinicoDescripcion: d.resultadoClinicoDescripcion,
-    observaciones:               d.observaciones,
-    duracionTotal:               d.duracionTotal,
-    creadoEn:                    d.createdAt || d.timestamp || new Date().toISOString(),
-    latencia:                    d.latenciaSegundos || null,
+    id:          d.incidenteId || d.id,
+    codigoUUID:  d.codigoUUID || d.codigo_uuid,
+    camaId:      d.camaId || d.ubicacionId || d.ubicacion?.id,
+    estado:      (d.estado || 'ACTIVADO').toLowerCase().replace('_', '-'),
+    estadoRaw:   d.estado,
+    ubicacion:   d.ubicacion,
+    activadoPor: d.activadoPor,
+    reanimador:  d.reanimador,
+    creadoEn:    d.createdAt || d.timestamp || new Date().toISOString(),
+    latencia:    d.latenciaSegundos || null,
   };
 }
 
@@ -113,7 +109,6 @@ export function initSocketGateway(httpServer) {
     console.log(`[SOCKET] Retransmitiendo nuevo incidente #${incNormalizado.id} a reanimadores y guardia.`);
 
     io.emit('incidente:nuevo', incNormalizado);
-    io.emit('codigo_azul_alerta', payload);
   });
 
   // 2. ACK de asistencia confirmado por reanimador
@@ -122,7 +117,6 @@ export function initSocketGateway(httpServer) {
     console.log(`[SOCKET] Retransmitiendo ACK de incidente #${incNormalizado.id} (Latencia: ${incNormalizado.latencia}s).`);
 
     io.emit('incidente:actualizado', incNormalizado);
-    io.emit('codigo_azul_atendido', payload);
   });
 
   // 3. Cancelación de incidente
@@ -131,24 +125,14 @@ export function initSocketGateway(httpServer) {
     console.log(`[SOCKET] Retransmitiendo cancelación de incidente #${incNormalizado.id}.`);
 
     io.emit('incidente:cancelado', incNormalizado);
-    io.emit('codigo_azul_cancelado', payload);
   });
 
-  // 4. Resolución clínica del incidente (con métrica ROSC / AHA)
+  // 4. Resolución clínica del incidente
   appEvents.on('incidente:resuelto', (payload) => {
     const incNormalizado = normalizarIncidente(payload);
-    console.log(`[SOCKET] Retransmitiendo resolución de incidente #${incNormalizado.id} (Resultado: ${incNormalizado.resultadoClinico || 'ROSC'}).`);
+    console.log(`[SOCKET] Retransmitiendo resolucion de incidente #${incNormalizado.id}.`);
 
     io.emit('incidente:resuelto', incNormalizado);
-    io.emit('codigo_azul_resuelto', payload);
-  });
-
-  // 5. Hitos clínicos intermedios durante la atención (AED, RCP, Fármacos)
-  appEvents.on('incidente:evento_clinico', (payload) => {
-    console.log(`[SOCKET] Retransmitiendo hito clínico ${payload.data?.tipoEvento} en incidente #${payload.data?.incidenteId}.`);
-
-    io.emit('incidente:evento_clinico', payload.data || payload);
-    io.emit('codigo_azul_evento_clinico', payload.data || payload);
   });
 
   ioInstance = io;
@@ -158,4 +142,3 @@ export function initSocketGateway(httpServer) {
 export function getSocketIO() {
   return ioInstance;
 }
-

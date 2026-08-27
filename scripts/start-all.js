@@ -11,11 +11,45 @@ console.log('===========================================================');
 console.log('   INICIANDO SISTEMA CODIGO AZUL — HOSPITAL MUNICIPAL     ');
 console.log('===========================================================');
 
+const PORT = config.port || 3000;
+
+// 0. Liberar puerto si estaba ocupado
+function liberarPuertoSiOcupado() {
+  console.log(`[0/3] Verificando disponibilidad del puerto ${PORT}...`);
+  try {
+    if (process.platform === 'win32') {
+      const output = execSync(`netstat -ano | findstr :${PORT}`, { encoding: 'utf-8' });
+      const lineas = output.trim().split('\n');
+      const pids = new Set();
+
+      lineas.forEach((linea) => {
+        const partes = linea.trim().split(/\s+/);
+        if (partes.length >= 5 && (partes[1].endsWith(`:${PORT}`) || partes[1].includes(`:${PORT}`))) {
+          const pid = partes[partes.length - 1];
+          if (pid && pid !== '0') pids.add(pid);
+        }
+      });
+
+      if (pids.size > 0) {
+        pids.forEach((pid) => {
+          try {
+            console.log(`      Liberando proceso anterior en puerto ${PORT} (PID ${pid})...`);
+            execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
+          } catch {
+            // Ignorar
+          }
+        });
+      }
+    }
+  } catch {
+    // Puerto libre
+  }
+}
+
 // 1. Iniciar PostgreSQL si está detenido en Windows
 function verificarOIniciarPostgres() {
   console.log('[1/3] Verificando estado de PostgreSQL...');
   try {
-    // Verificar si el puerto ya está escuchando (servicio de Windows activo)
     const netstatOutput = execSync(`netstat -ano | findstr :${config.db.port || 5432}`, { stdio: 'pipe' }).toString();
     if (netstatOutput.includes('LISTENING')) {
       console.log('      PostgreSQL ya se encuentra en ejecución (servicio activo).');
@@ -55,11 +89,11 @@ function prepararBaseDeDatos() {
 
 // 3. Arrancar Servidor Node.js
 function arrancarServidor() {
-  console.log('[3/3] Iniciando Servidor Backend y WebSockets en puerto ' + config.port + '...');
-  
+  console.log('[3/3] Iniciando Servidor Backend y WebSockets en puerto ' + PORT + '...');
+
   const serverProcess = spawn('node', ['src/server.js'], {
     stdio: 'inherit',
-    shell: true,
+    shell: false,
   });
 
   serverProcess.on('error', (err) => {
@@ -73,6 +107,7 @@ function arrancarServidor() {
 
 // Ejecución secuencial
 try {
+  liberarPuertoSiOcupado();
   verificarOIniciarPostgres();
   prepararBaseDeDatos();
   arrancarServidor();

@@ -1,129 +1,230 @@
+// ─────────────────────────────────────────────────────────────
+// codigo-azul-web/src/pages/LoginPage.jsx
+// Pantalla de Login institucional 1:1 idéntica a la suite hospitalaria.
+// ─────────────────────────────────────────────────────────────
+
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { soundService } from '../services/soundService.js';
+import { useUI } from '../context/UIContext.jsx';
+import Icono from '../components/common/Icono.jsx';
 
 export default function LoginPage() {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, isBackendOnline, login } = useAuth();
+  const { abrirModal, cerrarModal } = useUI();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+
+  const [emailOrUser, setEmailOrUser] = useState(
+    isBackendOnline ? 'medico.activador@hospital.gob.ar' : 'jmolina'
+  );
+  const [password, setPassword] = useState(
+    isBackendOnline ? 'Password123!' : 'demo1234'
+  );
   const [error, setError] = useState('');
   const [enviando, setEnviando] = useState(false);
 
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
-  const onSubmit = async (e, customEmail = null, customPass = null) => {
-    if (e) e.preventDefault();
+  const modoIndicador = isBackendOnline ? (
+    <span style={{ color: '#10B981', fontSize: '12px', fontWeight: 600 }}>
+      En Vivo (PostgreSQL)
+    </span>
+  ) : (
+    <span style={{ color: '#F59E0B', fontSize: '12px', fontWeight: 600 }}>
+      Demo (Datos Mock)
+    </span>
+  );
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setError('');
     setEnviando(true);
-    const targetEmail = customEmail || email;
-    const targetPass = customPass || password;
 
     try {
-      const usr = await login(targetEmail.trim(), targetPass);
-      // Desbloqueamos el AudioContext dentro del mismo gesto del usuario.
-      soundService.prime().catch(() => { /* sin sonido si el navegador lo bloquea */ });
-
-      // Redirección inteligente según el rol hospitalario
-      if (usr.rol === 'REANIMADOR_MEDICO') {
-        navigate('/reanimador', { replace: true });
-      } else if (usr.rol === 'MEDICO_ACTIVADOR') {
-        navigate('/alarma', { replace: true });
+      if (isBackendOnline) {
+        await login({ email: emailOrUser.trim(), password });
       } else {
-        navigate('/dashboard', { replace: true });
+        await login({ usuario: emailOrUser.trim(), password });
       }
+      navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Error de autenticación.');
+      setError(err?.data?.message || err?.message || 'Error de autenticación.');
     } finally {
       setEnviando(false);
     }
   };
 
-  const loginRapido = (usuarioDemo) => {
-    setEmail(usuarioDemo);
-    setPassword('azul123');
-    onSubmit(null, usuarioDemo, 'azul123');
+  const handleDemoLogin = async (rol) => {
+    setError('');
+    setEnviando(true);
+    try {
+      await login({ rol });
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      setError(err?.data?.message || err?.message || 'Error al ingresar en modo demo.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const handleOlvidaste = (e) => {
+    e.preventDefault();
+    abrirModal({
+      titulo: 'Recuperar contraseña',
+      angosto: true,
+      cuerpo: (
+        <p>
+          Contacta al área de <strong>Sistemas del Hospital</strong> al interno{' '}
+          <strong>2010</strong> o al correo{' '}
+          <a href="mailto:sistemas@hospital.gob.ar">sistemas@hospital.gob.ar</a>{' '}
+          para restablecer tu clave.
+        </p>
+      ),
+      pie: (
+        <button type="button" className="btn btn-primario" onClick={cerrarModal}>
+          Entendido
+        </button>
+      ),
+    });
   };
 
   return (
-    <div className="login-shell">
-      <form className="login-card" onSubmit={onSubmit}>
-        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-          <span style={{ fontSize: '2.5rem' }}>🫀</span>
-          <h1 className="login-title">Código Azul</h1>
-          <p className="login-subtitle">Plataforma Hospitalaria de Emergencia</p>
+    <div className="login-fondo">
+      <div className="login-tarjeta aparecer">
+        <div className="login-marca">
+          <div className="logo">
+            <Icono nombre="corazon" size={22} color="#ffffff" />
+          </div>
+          <div>
+            <h1>Codigo Azul</h1>
+            <p>Sistema hospitalario - ONETP 2026</p>
+          </div>
         </div>
 
-        <label className="login-field">
-          <span>Usuario o Correo</span>
-          <input
-            type="text"
-            autoComplete="username"
-            placeholder="ej. enfermero o correo@hospital.gob.ar"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </label>
+        <h2>Inicia sesion</h2>
+        <p className="subtitulo">
+          Ingresa con tus credenciales institucionales para acceder al panel. {modoIndicador}
+        </p>
 
-        <label className="login-field">
-          <span>Contraseña</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </label>
+        {error && (
+          <div
+            id="loginError"
+            style={{
+              display: 'block',
+              color: '#DC2626',
+              background: '#FEF2F2',
+              border: '1px solid #FECACA',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              marginBottom: '12px',
+              fontSize: '13px',
+            }}
+          >
+            {error}
+          </div>
+        )}
 
-        {error && <p className="login-error" role="alert">{error}</p>}
+        <form onSubmit={handleSubmit} id="formLogin">
+          {isBackendOnline ? (
+            <>
+              <div className="campo">
+                <label htmlFor="usr">Email institucional</label>
+                <input
+                  id="usr"
+                  type="email"
+                  placeholder="usuario@hospital.gob.ar"
+                  required
+                  autoComplete="username"
+                  value={emailOrUser}
+                  onChange={(e) => setEmailOrUser(e.target.value)}
+                />
+              </div>
+              <div className="campo">
+                <label htmlFor="pass">Contraseña</label>
+                <input
+                  id="pass"
+                  type="password"
+                  placeholder="Password123!"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="campo">
+                <label htmlFor="usr">Usuario</label>
+                <input
+                  id="usr"
+                  type="text"
+                  placeholder="usuario.hospital"
+                  required
+                  autoComplete="username"
+                  value={emailOrUser}
+                  onChange={(e) => setEmailOrUser(e.target.value)}
+                />
+              </div>
+              <div className="campo">
+                <label htmlFor="pass">Contraseña</label>
+                <input
+                  id="pass"
+                  type="password"
+                  placeholder="demo1234"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </>
+          )}
 
-        <button type="submit" className="btn btn--primary btn--block" disabled={enviando}>
-          {enviando ? 'Autenticando…' : 'Ingresar'}
-        </button>
+          <div className="opciones">
+            <label className="check">
+              <input type="checkbox" defaultChecked /> Recordarme
+            </label>
+            <a href="#olvido" onClick={handleOlvidaste}>
+              ¿Olvidaste tu contraseña?
+            </a>
+          </div>
 
-        {/* Accesos rápidos de DEMO para el jurado */}
-        <div className="demo-accesos">
-          <p className="demo-accesos-label">Accesos rápidos DEMO</p>
-          <div className="demo-grid">
+          <button
+            className="btn btn-primario btn-bloque btn-lg"
+            type="submit"
+            disabled={enviando}
+          >
+            {enviando ? 'Ingresando...' : 'Ingresar'}
+          </button>
+        </form>
+
+        <div className="demo">
+          <p>Accesos rapidos DEMO</p>
+          <div className="demo-fila">
             <button
               type="button"
-              className="btn-demo-pill"
-              onClick={() => loginRapido('enfermero')}
+              className="btn btn-secundario"
               disabled={enviando}
+              onClick={() => handleDemoLogin('admin')}
             >
-              👩‍⚕️ Enfermero/a (Pánico)
+              Entrar como Administrador
             </button>
             <button
               type="button"
-              className="btn-demo-pill"
-              onClick={() => loginRapido('reanimador')}
+              className="btn btn-secundario"
               disabled={enviando}
+              onClick={() => handleDemoLogin('enfermero')}
             >
-              🩺 Reanimador/a (ACK)
-            </button>
-            <button
-              type="button"
-              className="btn-demo-pill"
-              onClick={() => loginRapido('guardia')}
-              disabled={enviando}
-            >
-              🖥️ Operador Guardia
-            </button>
-            <button
-              type="button"
-              className="btn-demo-pill"
-              onClick={() => loginRapido('admin')}
-              disabled={enviando}
-            >
-              🛡️ Administrador
+              Entrar como Enfermero
             </button>
           </div>
         </div>
-      </form>
+
+        <p className="login-pie">&copy; 2026 - Hospital Municipal - ONETP Programacion</p>
+      </div>
     </div>
   );
 }

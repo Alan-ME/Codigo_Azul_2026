@@ -17,13 +17,12 @@ CREATE TABLE IF NOT EXISTS usuarios (
 
 -- 2. Tabla de Ubicaciones Espaciales Hospitalarias
 CREATE TABLE IF NOT EXISTS ubicaciones (
-  id               SERIAL PRIMARY KEY,
-  edificio         VARCHAR(100) NOT NULL,
-  piso             INT NOT NULL,
-  sector_sala      VARCHAR(100) NOT NULL,
-  cama             VARCHAR(20) NOT NULL,
-  tiene_carro_paro BOOLEAN NOT NULL DEFAULT false,
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  id             SERIAL PRIMARY KEY,
+  edificio       VARCHAR(100) NOT NULL,
+  piso           INT NOT NULL,
+  sector_sala    VARCHAR(100) NOT NULL,
+  cama           VARCHAR(20) NOT NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT uq_ubicacion_espacio UNIQUE (edificio, piso, sector_sala, cama)
 );
 
@@ -35,7 +34,6 @@ CREATE TABLE IF NOT EXISTS incidentes (
   activado_por_id    INT NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
   reanimador_id      INT REFERENCES usuarios(id) ON DELETE SET NULL,
   estado             estado_incidente NOT NULL DEFAULT 'ACTIVADO',
-  resultado_clinico  resultado_clinico,
   motivo_cancelacion TEXT,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   resolved_at        TIMESTAMPTZ

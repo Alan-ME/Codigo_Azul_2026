@@ -9,14 +9,15 @@
   },
   "scripts": {
     "dev": "nodemon src/server.js",
+    "dev:web": "npm run dev --prefix codigo-azul-web",
+    "build:web": "npm run build --prefix codigo-azul-web",
+    "build": "npm run build --prefix codigo-azul-web",
     "start": "node src/server.js",
     "start:all": "node scripts/start-all.js",
     "stop": "node scripts/stop-all.js",
     "restart": "node scripts/stop-all.js && node scripts/start-all.js",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
-    "build:web": "npm --prefix codigo-azul-web run build",
-    "build": "npm run build:web",
     "test": "node scripts/test-api.js"
   },
   "keywords": [
@@ -24,7 +25,9 @@
     "hospital",
     "emergencia",
     "express",
-    "postgresql"
+    "postgresql",
+    "react",
+    "vite"
   ],
   "author": "E.E.S.T. N.º 2 — Equipo Código Azul 2026",
   "license": "MIT",

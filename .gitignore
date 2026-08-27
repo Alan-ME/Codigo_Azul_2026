@@ -17,7 +17,7 @@ env
 *.key
 
 # Builds y temporales
-!codigo-azul-web/dist/
+dist/
 build/
 .tempmediaStorage/
 *.log

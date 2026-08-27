@@ -33,18 +33,3 @@ BEGIN
     );
   END IF;
 END $$;
-
--- Resultado clínico médico-legal al resolver un incidente (Estándar AHA / PERKI / ILCOR)
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'resultado_clinico') THEN
-    CREATE TYPE resultado_clinico AS ENUM (
-      'ROSC_EXITOSO',
-      'DESFIBRILACION_EFECTIVA',
-      'TRASLADO_UTI',
-      'FALLECIDO_DOA',
-      'FALSA_ALARMA'
-    );
-  END IF;
-END $$;
-

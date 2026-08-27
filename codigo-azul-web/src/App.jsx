@@ -1,73 +1,67 @@
+// ─────────────────────────────────────────────────────────────
+// codigo-azul-web/src/App.jsx
+// Enrutador central con AuthProvider, IncidentesProvider, ProtectedRoute y AppShell.
+// Conecta 1:1 los 12 módulos de escritorio + la App Móvil de Alarma (/alarma).
+// ─────────────────────────────────────────────────────────────
+
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
 import { IncidentesProvider } from './context/IncidentesContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import AppShell from './components/layout/AppShell.jsx';
+
 import LoginPage from './pages/LoginPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
-import PanicoPage from './pages/PanicoPage.jsx';
-import ReanimadorPage from './pages/ReanimadorPage.jsx';
-
-function HomeRedirect() {
-  const { user } = useAuth();
-  if (user?.rol === 'REANIMADOR_MEDICO') return <Navigate to="/reanimador" replace />;
-  if (user?.rol === 'MEDICO_ACTIVADOR') return <Navigate to="/alarma" replace />;
-  return <Navigate to="/dashboard" replace />;
-}
+import TableroPage from './pages/TableroPage.jsx';
+import PacientesPage from './pages/PacientesPage.jsx';
+import HistorialPage from './pages/HistorialPage.jsx';
+import ReportesPage from './pages/ReportesPage.jsx';
+import UsuariosPage from './pages/UsuariosPage.jsx';
+import AreasPage from './pages/AreasPage.jsx';
+import ConfiguracionPage from './pages/ConfiguracionPage.jsx';
+import MobilePreviewPage from './pages/MobilePreviewPage.jsx';
+import PerfilPage from './pages/PerfilPage.jsx';
+import NotificacionesPage from './pages/NotificacionesPage.jsx';
+import AyudaPage from './pages/AyudaPage.jsx';
+import MobileAppStandalonePage from './pages/MobileAppStandalonePage.jsx';
 
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <IncidentesProvider>
-                <DashboardPage />
-              </IncidentesProvider>
-            </ProtectedRoute>
-          }
-        />
+      <IncidentesProvider>
+        <Routes>
+          {/* Ruta directa para la App Móvil / Botón de Pánico */}
+          <Route path="/alarma" element={<MobileAppStandalonePage />} />
+          <Route path="/mobile" element={<MobileAppStandalonePage />} />
 
-        <Route
-          path="/alarma"
-          element={
-            <ProtectedRoute>
-              <PanicoPage />
-            </ProtectedRoute>
-          }
-        />
+          {/* Login de Escritorio */}
+          <Route path="/login" element={<LoginPage />} />
 
-        <Route
-          path="/panico"
-          element={<Navigate to="/alarma" replace />}
-        />
+          {/* Rutas protegidas con AppShell (Desktop Suite) */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/tablero" element={<TableroPage />} />
+            <Route path="/historial" element={<HistorialPage />} />
+            <Route path="/reportes" element={<ReportesPage />} />
+            <Route path="/pacientes" element={<PacientesPage />} />
+            <Route path="/usuarios" element={<UsuariosPage />} />
+            <Route path="/areas" element={<AreasPage />} />
+            <Route path="/configuracion" element={<ConfiguracionPage />} />
+            <Route path="/mobile-preview" element={<MobilePreviewPage />} />
+            <Route path="/perfil" element={<PerfilPage />} />
+            <Route path="/notificaciones" element={<NotificacionesPage />} />
+            <Route path="/ayuda" element={<AyudaPage />} />
+          </Route>
 
-        <Route
-          path="/reanimador"
-          element={
-            <ProtectedRoute>
-              <IncidentesProvider>
-                <ReanimadorPage />
-              </IncidentesProvider>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <HomeRedirect />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </IncidentesProvider>
     </AuthProvider>
   );
 }
-

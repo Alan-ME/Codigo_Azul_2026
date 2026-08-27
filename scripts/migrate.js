@@ -36,34 +36,6 @@ const runMigrations = async () => {
     }
   }
 
-  // Migraciones DDL idempotentes para bases de datos preexistentes
-  try {
-    await query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'resultado_clinico') THEN
-          CREATE TYPE resultado_clinico AS ENUM (
-            'ROSC_EXITOSO',
-            'DESFIBRILACION_EFECTIVA',
-            'TRASLADO_UTI',
-            'FALLECIDO_DOA',
-            'FALSA_ALARMA'
-          );
-        END IF;
-      END $$;
-
-      ALTER TABLE ubicaciones
-        ADD COLUMN IF NOT EXISTS tiene_carro_paro BOOLEAN NOT NULL DEFAULT false;
-
-      ALTER TABLE incidentes
-        ADD COLUMN IF NOT EXISTS resultado_clinico resultado_clinico;
-    `);
-    console.log('[MIGRATE] [OK]: DDL idempotente (tiene_carro_paro, resultado_clinico) verificado.');
-  } catch (err) {
-    console.error('[MIGRATE] [ERROR] en DDL idempotente:', err.message);
-    process.exit(1);
-  }
-
   console.log('[MIGRATE] [SUCCESS] Todas las migraciones fueron ejecutadas con exito.');
   process.exit(0);
 };

@@ -114,17 +114,14 @@ export class ActivarCodigoAzulUseCase {
       await client.query('COMMIT');
 
       const payloadRespuesta = {
-        id:          nuevoIncidente.id,
         incidenteId: nuevoIncidente.id,
         codigoUUID:  nuevoIncidente.codigo_uuid,
         estado:      nuevoIncidente.estado,
         ubicacion: {
-          id:             ubicacion.id,
-          edificio:       ubicacion.edificio,
-          piso:           ubicacion.piso,
-          sectorSala:     ubicacion.sector_sala,
-          cama:           ubicacion.cama,
-          tieneCarroParo: ubicacion.tiene_carro_paro,
+          edificio:   ubicacion.edificio,
+          piso:       ubicacion.piso,
+          sectorSala: ubicacion.sector_sala,
+          cama:       ubicacion.cama,
         },
         activadoPor: {
           id:     user.id,

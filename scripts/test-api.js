@@ -157,44 +157,23 @@ const runAllTests = async () => {
   assert(ack2Res.status === 200, 'ACK 2 procesado correctamente');
   assert(ack2Res.data.data.esReanimadorSecundario === true, 'Reanimador 2 registrado como Reanimador Secundario de Apoyo');
 
-  // 8b. Registro de Hitos Clínicos Intermedios (AHA / Utstein: AED y RCP)
-  logStep('8b', 'Registro de Hitos Clinicos de Reanimacion (POST /api/v1/incidentes/:id/evento-clinico)');
-  const hitoAedRes = await post(
-    `/incidentes/${incidenteId}/evento-clinico`,
-    { tipoEvento: 'DESCARGA_AED', detalle: 'Descarga bifásica 200J aplicada' },
-    reanimador1Token
+  // 9. Cancelación / Cierre
+  logStep(9, 'Cancelacion de Incidente con Motivo Obligatorio');
+  const cancelRes = await post(
+    `/incidentes/${incidenteId}/cancelar`,
+    { motivo: 'Paciente estabilizado rapidamente / simulacro de guardia' },
+    guardiaToken
   );
-  assert(hitoAedRes.status === 201, 'Hito 1ra Descarga AED registrado en auditoria con status HTTP 201');
-  assert(hitoAedRes.data.data.tipoEvento === 'DESCARGA_AED', 'Tipo de evento clinico coincide');
-
-  const hitoRcpRes = await post(
-    `/incidentes/${incidenteId}/evento-clinico`,
-    { tipoEvento: 'INICIO_RCP', detalle: 'Compresiones 100-120 cpm iniciadas' },
-    reanimador1Token
-  );
-  assert(hitoRcpRes.status === 201, 'Hito Inicio RCP registrado en auditoria con status HTTP 201');
-
-  // 9. Cierre Clínico y Métrica ROSC (AHA / PERKI)
-  logStep(9, 'Cierre Clinico y Metrica ROSC (PUT /api/v1/incidentes/:id/resolver)');
-  const resolverRes = await put(
-    `/incidentes/${incidenteId}/resolver`,
-    {
-      resultadoClinico: 'ROSC_EXITOSO',
-      observaciones: 'Retorno de circulacion espontanea tras 1 descarga y 2 min de RCP. Paciente estable.',
-    },
-    reanimador1Token
-  );
-  assert(resolverRes.status === 200, 'Incidente resuelto y ciclo clinico cerrado con exito');
-  assert(resolverRes.data.data.estado === 'RESUELTO', 'Estado final RESUELTO');
-  assert(resolverRes.data.data.resultadoClinico === 'ROSC_EXITOSO', 'Metrica ROSC_EXITOSO persistida correctamente');
-  assert(Boolean(resolverRes.data.data.resolvedAt), 'Fecha resolvedAt registrada');
+  assert(cancelRes.status === 200, 'Incidente cancelado con exito');
+  assert(cancelRes.data.data.estado === 'CANCELADO', 'Estado final CANCELADO');
+  assert(Boolean(cancelRes.data.data.resolvedAt), 'Fecha resolvedAt registrada');
 
   // 10. Detalle Completo e Historial de Auditoría Inmutable
   logStep(10, 'Consulta de Trazabilidad e Historial Inmutable de Auditoria');
   const detalleRes = await get(`/incidentes/${incidenteId}`, guardiaToken);
   assert(detalleRes.status === 200, 'Detalle obtenido con exito');
   const historial = detalleRes.data.data.historialAuditoria;
-  assert(historial.length >= 5, `Historial completo registrado (${historial.length} eventos auditados)`);
+  assert(historial.length >= 4, `Historial completo registrado (${historial.length} eventos auditados)`);
   console.log('   Eventos auditados registrados en BD:');
   historial.forEach((ev, i) => {
     console.log(`     ${i + 1}. [${ev.timestamp_evento}] ${ev.tipo_evento}`);

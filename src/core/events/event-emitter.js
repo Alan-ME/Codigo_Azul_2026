@@ -1,25 +1,18 @@
 // ─────────────────────────────────────────────────────────────
 // src/core/events/event-emitter.js
 // EventEmitter centralizado para comunicación interna entre
-// módulos (Clean Architecture Domain Events).
+// módulos. Los use cases emiten eventos aquí y Alex (Tiempo
+// Real) suscribe listeners de Socket.IO a estos mismos eventos.
 //
-// Modo de Operación:
-//   - On-Premise Single-Node (Default): EventEmitter nativo en RAM (<1ms latencia).
-//   - Multi-Node Cluster (Escalabilidad Horizontal): Interfaz preparada para
-//     conectar con broker Redis Pub/Sub (@socket.io/redis-adapter).
-//
-// Eventos del Dominio:
-//   - 'incidente:activado'       → Payload del incidente creado y despachado.
-//   - 'incidente:ack'            → Payload del ACK con latencia de reanimador.
-//   - 'incidente:evento_clinico' → Hitos intermedios (AED, RCP, Adrenalina).
-//   - 'incidente:cancelado'      → Payload de cancelación operativa.
-//   - 'incidente:resuelto'       → Cierre clínico con métrica ROSC (AHA/PERKI).
+// Eventos definidos:
+//   - 'incidente:activado'  → payload del incidente creado
+//   - 'incidente:ack'       → payload del ACK con latencia
+//   - 'incidente:cancelado' → payload de la cancelación
 // ─────────────────────────────────────────────────────────────
 import { EventEmitter } from 'node:events';
 
 /** Instancia singleton del bus de eventos de la aplicación. */
 export const appEvents = new EventEmitter();
 
-// Aumentar el límite de listeners para soportar múltiples suscriptores (Sockets, FCM, Telemetría).
-appEvents.setMaxListeners(30);
-
+// Aumentar el límite de listeners para soportar múltiples suscriptores.
+appEvents.setMaxListeners(20);
