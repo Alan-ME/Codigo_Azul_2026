@@ -2,7 +2,7 @@
 -- sql/004_seed_data.sql
 -- Datos sintéticos para pruebas, demo ante jurado y validación de roles.
 -- Contraseña de todos los usuarios de prueba: Password123!
--- Hash bcrypt (cost 10): $2b$10$5wRKxiF.bmNBVd70DQ.wUeg9QZecoCOSYG2KzpuaJsAz284ia.3L.
+-- Hash bcrypt (cost 10): $2b$10$yly9fco8x8mRq/ymsJOLJeUlrJg0HJFWVJlLaPuw2xqwcY2FjIJdG
 -- ─────────────────────────────────────────────────────────────
 
 -- 1. Inserción de Usuarios Sintéticos
@@ -11,46 +11,46 @@ VALUES
   (
     'Alan', 'Martinez',
     'admin@hospital.gob.ar',
-    '$2b$10$5wRKxiF.bmNBVd70DQ.wUeg9QZecoCOSYG2KzpuaJsAz284ia.3L.',
+    '$2b$10$yly9fco8x8mRq/ymsJOLJeUlrJg0HJFWVJlLaPuw2xqwcY2FjIJdG',
     'ADMINISTRADOR',
     true
   ),
   (
     'Maria Elena', 'Gonzalez',
     'medico.activador@hospital.gob.ar',
-    '$2b$10$5wRKxiF.bmNBVd70DQ.wUeg9QZecoCOSYG2KzpuaJsAz284ia.3L.',
+    '$2b$10$yly9fco8x8mRq/ymsJOLJeUlrJg0HJFWVJlLaPuw2xqwcY2FjIJdG',
     'MEDICO_ACTIVADOR',
     true
   ),
   (
     'Carlos', 'Benitez',
     'enfermero.activador@hospital.gob.ar',
-    '$2b$10$5wRKxiF.bmNBVd70DQ.wUeg9QZecoCOSYG2KzpuaJsAz284ia.3L.',
+    '$2b$10$yly9fco8x8mRq/ymsJOLJeUlrJg0HJFWVJlLaPuw2xqwcY2FjIJdG',
     'MEDICO_ACTIVADOR',
     true
   ),
   (
     'Ivan', 'Cardozo',
     'reanimador1@hospital.gob.ar',
-    '$2b$10$5wRKxiF.bmNBVd70DQ.wUeg9QZecoCOSYG2KzpuaJsAz284ia.3L.',
+    '$2b$10$yly9fco8x8mRq/ymsJOLJeUlrJg0HJFWVJlLaPuw2xqwcY2FjIJdG',
     'REANIMADOR_MEDICO',
     true
   ),
   (
     'Alex', 'Heredia',
     'reanimador2@hospital.gob.ar',
-    '$2b$10$5wRKxiF.bmNBVd70DQ.wUeg9QZecoCOSYG2KzpuaJsAz284ia.3L.',
+    '$2b$10$yly9fco8x8mRq/ymsJOLJeUlrJg0HJFWVJlLaPuw2xqwcY2FjIJdG',
     'REANIMADOR_MEDICO',
     true
   ),
   (
     'Marcos', 'Silvani',
     'guardia@hospital.gob.ar',
-    '$2b$10$5wRKxiF.bmNBVd70DQ.wUeg9QZecoCOSYG2KzpuaJsAz284ia.3L.',
+    '$2b$10$yly9fco8x8mRq/ymsJOLJeUlrJg0HJFWVJlLaPuw2xqwcY2FjIJdG',
     'OPERADOR_GUARDIA',
     true
   )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 
 -- 2. Inserción de Ubicaciones Hospitalarias
 INSERT INTO ubicaciones (edificio, piso, sector_sala, cama, tiene_carro_paro)
