@@ -109,6 +109,7 @@ export function initSocketGateway(httpServer) {
     console.log(`[SOCKET] Retransmitiendo nuevo incidente #${incNormalizado.id} a reanimadores y guardia.`);
 
     io.emit('incidente:nuevo', incNormalizado);
+    io.emit('codigo_azul_alerta', incNormalizado);
   });
 
   // 2. ACK de asistencia confirmado por reanimador
@@ -117,6 +118,7 @@ export function initSocketGateway(httpServer) {
     console.log(`[SOCKET] Retransmitiendo ACK de incidente #${incNormalizado.id} (Latencia: ${incNormalizado.latencia}s).`);
 
     io.emit('incidente:actualizado', incNormalizado);
+    io.emit('codigo_azul_ack', incNormalizado);
   });
 
   // 3. Cancelación de incidente
@@ -125,6 +127,7 @@ export function initSocketGateway(httpServer) {
     console.log(`[SOCKET] Retransmitiendo cancelación de incidente #${incNormalizado.id}.`);
 
     io.emit('incidente:cancelado', incNormalizado);
+    io.emit('codigo_azul_cancelado', incNormalizado);
   });
 
   // 4. Resolución clínica del incidente
@@ -133,6 +136,7 @@ export function initSocketGateway(httpServer) {
     console.log(`[SOCKET] Retransmitiendo resolucion de incidente #${incNormalizado.id}.`);
 
     io.emit('incidente:resuelto', incNormalizado);
+    io.emit('codigo_azul_resuelto', incNormalizado);
   });
 
   ioInstance = io;
