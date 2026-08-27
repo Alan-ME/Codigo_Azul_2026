@@ -21,12 +21,12 @@ import fcmRoutes from './features/fcm/presentation/fcm.routes.js';
 import { incidenteController } from './features/codigo_azul/presentation/incidente.controller.js';
 import { authenticateJWT } from './core/middlewares/auth.middleware.js';
 
-// -- Ruta al frontend integrado (public/) ────────────────────
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const FRONTEND_DIR = join(__dirname, '..', 'public');
+const REACT_DIST_DIR = join(__dirname, '..', 'codigo-azul-web', 'dist');
 
 const app = express();
 
@@ -38,45 +38,47 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc:  ["'self'", "'unsafe-inline'"],
         styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc:    ["'self'", "https://fonts.gstatic.com", "data:"],
-        imgSrc:     ["'self'", "data:", "blob:", "https://images.unsplash.com", "https://*.unsplash.com", "https:"],
-        connectSrc: ["'self'", "ws:", "wss:", "http://localhost:*", "http://127.0.0.1:*"],
+        fontSrc:    ["'self'", "https://fonts.gstatic.com"],
+        connectSrc: ["'self'", "ws:", "wss:", "http://localhost:*", "https://*"],
+        imgSrc:     ["'self'", "data:", "blob:", "https://*"],
       },
     },
-    crossOriginEmbedderPolicy: false,
   })
 );
-app.use(cors({ origin: config.corsOrigin }));   // CORS configurado
-app.use(express.json({ limit: '1mb' }));        // Parseo de JSON
-app.use(requestLogger);                         // Log de requests
 
-// ── Health Check Profundo ────────────────────────────────────
+app.use(cors({ origin: config.corsOrigin, credentials: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(requestLogger);
+
+// ── Endpoint de Health Check ─────────────────────────────────
 app.get('/api/v1/health', async (req, res) => {
-  let dbStatus = 'offline';
-  let fcmStatus = 'offline';
+  let dbStatus = 'healthy';
+  let fcmStatus = 'healthy';
 
   try {
     await query('SELECT 1');
-    dbStatus = 'online';
-  } catch (_) {
-    dbStatus = 'offline';
+  } catch {
+    dbStatus = 'unhealthy';
   }
 
-  try {
-    fcmStatus = (await testFirebaseConnection()) ? 'online' : 'offline';
-  } catch (_) {
-    fcmStatus = 'offline';
+  const fcmConnected = await testFirebaseConnection();
+  if (!fcmConnected) {
+    fcmStatus = 'disconnected';
   }
 
-  const overall = dbStatus === 'online' ? 'online' : 'degraded';
+  const overallStatus = dbStatus === 'healthy' ? 'healthy' : 'degraded';
 
-  sendSuccess(res, {
-    status:    overall,
+  return sendSuccess(res, {
+    status: overallStatus,
     timestamp: new Date().toISOString(),
-    version:   '1.0.0',
+    uptimeSeconds: Math.floor(process.uptime()),
+    version: '1.0.0',
+    environment: config.nodeEnv,
     services: {
       database: dbStatus,
-      firebase: fcmStatus,
+      fcm: fcmStatus,
+      sockets: 'healthy',
     },
   });
 });
@@ -87,38 +89,31 @@ app.use('/api/v1/incidentes', incidenteRoutes);
 app.use('/api/v1/fcm', fcmRoutes);
 app.get('/api/v1/ubicaciones', authenticateJWT, incidenteController.listarUbicaciones);
 
-// -- Frontend Integrado (React Web + PWA Móvil) ─────────────
-import fs from 'node:fs';
-const REACT_DIST_DIR = join(__dirname, '..', 'codigo-azul-web', 'dist');
-
-// Dashboard PC hospitalario: sirve React SPA moderna si existe el build, o fallback a public/
+// -- Frontend Unificado (React + Vite SPA) ────────────────────
 if (fs.existsSync(REACT_DIST_DIR)) {
-  app.use('/app', express.static(REACT_DIST_DIR));
-  app.get('/app/*', (req, res) => {
+  app.use(express.static(REACT_DIST_DIR));
+  
+  // Soporte universal para SPA Client Routing (/dashboard, /alarma, /panico, /reanimador, /login)
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
     res.sendFile(join(REACT_DIST_DIR, 'index.html'));
   });
-} else {
-  app.use('/app', express.static(FRONTEND_DIR));
 }
 
-// App Móvil / PWA Alarma para Médicos y Reanimadores: /alarma y /movil
-app.use('/alarma', express.static(join(FRONTEND_DIR, 'alarma')));
-app.use('/movil', express.static(join(FRONTEND_DIR, 'alarma')));
-
-// Redirección raíz hacia el Dashboard
-app.get('/', (req, res) => {
-  res.redirect('/app');
-});
-
-// ── Ruta 404 (no encontrada) ─────────────────────────────────
+// ── Ruta 404 para API (no encontrada) ────────────────────────
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: `Ruta no encontrada: ${req.method} ${req.originalUrl}`,
+    error: {
+      code: 404,
+      message: `Ruta no encontrada: ${req.method} ${req.originalUrl}`,
+    },
   });
 });
 
-// ── Error Handler Global (ÚLTIMO middleware) ─────────────────
+// ── Handler Global de Errores ────────────────────────────────
 app.use(errorHandler);
 
 export default app;
