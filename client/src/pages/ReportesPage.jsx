@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────
-// codigo-azul-web/src/pages/ReportesPage.jsx
+// client/src/pages/ReportesPage.jsx
 // Reportes Estadísticos, Analítica Avanzada y Exportación Oficial en PDF.
-// Replica 1:1 los gráficos, filtros, ranking y exportaciones de reportes.js
+// Modularizado con RankingEnfermerosTable y ResumenTipoEstadoCard.
 // ─────────────────────────────────────────────────────────────
 
 import { useMemo, useState } from 'react';
@@ -9,18 +9,27 @@ import { useIncidentes } from '../context/IncidentesContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import Icono from '../components/common/Icono.jsx';
 import { LineChart, PieChart, StackedBarChart } from '../components/common/Charts.jsx';
-import { initialAreas, initialPacientes, initialUsuarios, initialOrigenesLlamado, initialTiposLlamado } from '../data/mockData.js';
+import {
+  initialAreas,
+  initialPacientes,
+  initialUsuarios,
+  initialOrigenesLlamado,
+  initialTiposLlamado,
+} from '../data/mockData.js';
 import { descargarTablaPDF } from '../services/pdfService.js';
 
+import RankingEnfermerosTable from '../components/reportes/RankingEnfermerosTable.jsx';
+import ResumenTipoEstadoCard from '../components/reportes/ResumenTipoEstadoCard.jsx';
+
 const PDF_COLS = [
-  { key: 'id',          label: 'ID',         w: 20 },
-  { key: 'horaInicio',  label: 'Fecha/Hora', w: 34 },
-  { key: 'tipo',        label: 'Tipo',       w: 20 },
-  { key: 'estado',      label: 'Estado',     w: 22 },
-  { key: 'origen',      label: 'Origen',     w: 18 },
-  { key: 'area',        label: 'Área',       w: 20 },
-  { key: 'enfermero',   label: 'Enfermero',  w: 30 },
-  { key: 'tResp',       label: 'T. Resp.',   w: 18, align: 'right' },
+  { key: 'id', label: 'ID', w: 20 },
+  { key: 'horaInicio', label: 'Fecha/Hora', w: 34 },
+  { key: 'tipo', label: 'Tipo', w: 20 },
+  { key: 'estado', label: 'Estado', w: 22 },
+  { key: 'origen', label: 'Origen', w: 18 },
+  { key: 'area', label: 'Área', w: 20 },
+  { key: 'enfermero', label: 'Enfermero', w: 30 },
+  { key: 'tResp', label: 'T. Resp.', w: 18, align: 'right' },
 ];
 
 export default function ReportesPage() {
@@ -34,10 +43,7 @@ export default function ReportesPage() {
   const [tipo, setTipo] = useState('todos');
   const [enfermero, setEnfermero] = useState('todos');
 
-  const enfermeros = useMemo(
-    () => initialUsuarios.filter((u) => u.rol === 'enfermero'),
-    []
-  );
+  const enfermeros = useMemo(() => initialUsuarios.filter((u) => u.rol === 'enfermero'), []);
 
   const toggleArea = (id) => {
     setAreasSel((prev) => {
@@ -149,239 +155,224 @@ export default function ReportesPage() {
 
     return {
       categorias: initialAreas.map((a) => a.abrev),
-      series: [
-        { nombre: 'Cama',    color: '#0B5FFF', valores: initialAreas.map((a) => cuenta(a.id, 'cama')) },
-        { nombre: 'Baño',    color: '#0EA5E9', valores: initialAreas.map((a) => cuenta(a.id, 'baño')) },
-        { nombre: 'Pulsera', color: '#8B5CF6', valores: initialAreas.map((a) => cuenta(a.id, 'pulsera')) },
-      ],
+      series: initialOrigenesLlamado.map((o, idx) => {
+        const colores = ['#0B5FFF', '#0EA5E9', '#8B5CF6', '#F59E0B', '#10B981'];
+        return {
+          nombre: o.nombre,
+          color: colores[idx % colores.length],
+          valores: initialAreas.map((a) => cuenta(a.id, o.id)),
+        };
+      }),
     };
   }, [lista]);
 
   // 5. Ranking de Enfermeros
   const ranking = useMemo(() => {
-    return enfermeros
-      .map((e) => {
-        const suyos = lista.filter((l) => l.enfermeroId === e.id && l.estado === 'atendido');
-        const tiempos = suyos.map((l) => l.tiempoRespuestaSeg).filter(Boolean);
-        const prom = tiempos.length ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : 0;
-        return { u: e, count: suyos.length, prom };
-      })
-      .sort((a, b) => b.count - a.count);
-  }, [lista, enfermeros]);
+    const mapa = {};
+    lista.forEach((l) => {
+      if (!l.enfermeroId || l.estado !== 'atendido') return;
+      if (!mapa[l.enfermeroId]) {
+        const u = initialUsuarios.find((uu) => uu.id === l.enfermeroId);
+        if (!u) return;
+        mapa[l.enfermeroId] = { u, count: 0, tiempos: [] };
+      }
+      mapa[l.enfermeroId].count++;
+      if (l.tiempoRespuestaSeg != null) {
+        mapa[l.enfermeroId].tiempos.push(l.tiempoRespuestaSeg);
+      }
+    });
 
-  // Exportaciones
-  const filtrosLegibles = () => {
-    const partes = [];
-    if (fDesde) partes.push(`desde ${fDesde}`);
-    if (fHasta) partes.push(`hasta ${fHasta}`);
-    if (origen !== 'todos') {
-      const o = initialOrigenesLlamado.find((x) => x.id === origen);
-      partes.push(`origen: ${o?.nombre || origen}`);
-    }
-    if (tipo !== 'todos') partes.push(`tipo: ${tipo}`);
-    if (enfermero !== 'todos') {
-      const e = initialUsuarios.find((u) => u.id === enfermero);
-      partes.push(`enfermero: ${e?.nombre || enfermero}`);
-    }
-    if (areasSel.size > 0) {
-      const nombres = [...areasSel]
-        .map((id) => initialAreas.find((a) => a.id === id)?.abrev)
-        .filter(Boolean);
-      partes.push(`áreas: ${nombres.join(', ')}`);
-    }
-    return partes.length ? partes.join(' · ') : 'sin filtros aplicados';
+    return Object.values(mapa)
+      .map((item) => ({
+        u: item.u,
+        count: item.count,
+        prom: item.tiempos.length ? Math.round(item.tiempos.reduce((a, b) => a + b, 0) / item.tiempos.length) : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [lista]);
+
+  // Exportar PDF oficial
+  const handleExportarPDF = async () => {
+    const filas = lista.map((l) => {
+      const pac = initialPacientes.find((p) => p.id === l.pacienteId);
+      const a = initialAreas.find((x) => x.id === pac?.areaId);
+      const enf = initialUsuarios.find((u) => u.id === l.enfermeroId);
+      return {
+        id: l.id,
+        horaInicio: l.horaInicio.replace('T', ' ').slice(0, 16),
+        tipo: l.tipo === 'codigo-azul' ? 'Código Azul' : l.tipo === 'emergencia' ? 'Emergencia' : 'Normal',
+        estado: l.estado === 'atendido' ? 'Atendido' : 'No atendido',
+        origen: l.origen,
+        area: a?.abrev || '—',
+        enfermero: enf?.nombre || '—',
+        tResp: l.tiempoRespuestaSeg != null ? `${l.tiempoRespuestaSeg}s` : '—',
+      };
+    });
+
+    const kpis = [
+      { t: 'Total llamados', v: lista.length },
+      { t: 'Tasa atención', v: `${tasaAtencion}%` },
+      { t: 'Tiempo prom. respuesta', v: `${promResp}s` },
+      { t: 'Código Azul', v: lista.filter((l) => l.tipo === 'codigo-azul').length },
+    ];
+
+    const filtrosTexto = [
+      fDesde && `Desde: ${fDesde}`,
+      fHasta && `Hasta: ${fHasta}`,
+      origen !== 'todos' && `Origen: ${origen}`,
+      tipo !== 'todos' && `Tipo: ${tipo}`,
+      enfermero !== 'todos' && `Enfermero: ${initialUsuarios.find((u) => u.id === enfermero)?.nombre || enfermero}`,
+      areasSel.size > 0 && `Áreas: ${Array.from(areasSel).map((id) => initialAreas.find((a) => a.id === id)?.abrev).join(', ')}`,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
+    const ok = await descargarTablaPDF({
+      titulo: 'Reporte General de Llamados e Incidentes',
+      nombreArchivo: `reporte_llamados_${new Date().toISOString().slice(0, 10)}.pdf`,
+      filtros: filtrosTexto || 'Sin filtros específicos (todos los registros)',
+      kpis,
+      columnas: PDF_COLS,
+      filas,
+    });
+
+    if (ok) toast({ titulo: 'PDF Generado', msj: 'El documento se descargó correctamente.', tipo: 'exito' });
+    else toast({ titulo: 'Error al generar PDF', tipo: 'error' });
   };
 
-  const handleExportarCsv = () => {
+  // Exportar CSV
+  const handleExportarCSV = () => {
     if (!lista.length) {
-      toast({ titulo: 'Sin datos para exportar con los filtros actuales', tipo: 'aviso' });
+      toast({ titulo: 'Sin datos para exportar', tipo: 'info' });
       return;
     }
-    const escapar = (v) => {
-      if (v == null) return '';
-      const s = String(v);
-      return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const cabeceras = ['id','fecha_inicio','fecha_fin','tipo','estado','origen','area','paciente','enfermero','tiempo_respuesta_seg'];
-    const filas = lista.map((llamado) => {
-      const paciente = initialPacientes.find((p) => p.id === llamado.pacienteId);
-      const area = paciente && initialAreas.find((a) => a.id === paciente.areaId);
-      const enf = initialUsuarios.find((u) => u.id === llamado.enfermeroId);
+    const headers = ['ID', 'Fecha/Hora', 'Tipo', 'Estado', 'Origen', 'Área', 'Enfermero', 'TiempoRespuestaSeg', 'DuracionSeg'];
+    const rows = lista.map((l) => {
+      const pac = initialPacientes.find((p) => p.id === l.pacienteId);
+      const a = initialAreas.find((x) => x.id === pac?.areaId);
+      const enf = initialUsuarios.find((u) => u.id === l.enfermeroId);
       return [
-        llamado.id,
-        llamado.horaInicio,
-        llamado.horaFin || '',
-        llamado.tipo,
-        llamado.estado,
-        llamado.origen,
-        area?.nombre || '',
-        paciente?.nombre || '',
+        l.id,
+        l.horaInicio,
+        l.tipo,
+        l.estado,
+        l.origen,
+        a?.nombre || '',
         enf?.nombre || '',
-        llamado.tiempoRespuestaSeg ?? '',
-      ].map(escapar).join(',');
+        l.tiempoRespuestaSeg ?? '',
+        l.duracionSeg ?? '',
+      ];
     });
 
-    const blob = new Blob(['\uFEFF' + [cabeceras.join(','), ...filas].join('\r\n')], {
-      type: 'text/csv;charset=utf-8',
-    });
-    const url = URL.createObjectURL(blob);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
-    link.href = url;
-    link.download = `reporte-codigo-azul_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `reporte_llamados_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    toast({ titulo: `Reporte CSV descargado (${lista.length} filas)`, tipo: 'exito' });
-  };
-
-  const handleExportarPdf = () => {
-    if (!lista.length) {
-      toast({ titulo: 'Sin datos para exportar con los filtros actuales', tipo: 'aviso' });
-      return;
-    }
-
-    const normalizarFila = (llamado) => {
-      const paciente = initialPacientes.find((p) => p.id === llamado.pacienteId);
-      const area = paciente && initialAreas.find((a) => a.id === paciente.areaId);
-      const enf = initialUsuarios.find((u) => u.id === llamado.enfermeroId);
-      return {
-        id:         llamado.id,
-        horaInicio: String(llamado.horaInicio).replace('T', ' ').slice(0, 16),
-        tipo:       llamado.tipo === 'codigo-azul' ? 'Código Azul' : llamado.tipo,
-        estado:     llamado.estado,
-        origen:     llamado.origen,
-        area:       area?.abrev || area?.nombre || '',
-        enfermero:  enf?.nombre || '',
-        tResp:      llamado.tiempoRespuestaSeg != null ? segundosADuracion(llamado.tiempoRespuestaSeg) : '',
-      };
-    };
-
-    const ok = descargarTablaPDF({
-      titulo: 'Reporte estadístico — Código Azul',
-      nombreArchivo: `reporte-codigo-azul_${new Date().toISOString().slice(0, 10)}.pdf`,
-      filtros: filtrosLegibles(),
-      kpis: [
-        { t: 'Total de llamados',      v: String(lista.length) },
-        { t: 'Tasa de atención',       v: `${tasaAtencion}%` },
-        { t: 'Tiempo prom. respuesta', v: segundosADuracion(promResp) },
-      ],
-      columnas: PDF_COLS,
-      filas: lista.map(normalizarFila),
-    });
-
-    if (ok) toast({ titulo: `Reporte PDF descargado (${lista.length} llamados)`, tipo: 'exito' });
+    document.body.removeChild(link);
+    toast({ titulo: 'CSV Descargado', msj: `${lista.length} registros exportados.`, tipo: 'exito' });
   };
 
   return (
-    <div className="reportes-page aparecer">
+    <div className="pagina">
+      {/* Cabecera */}
       <div className="cabecera-pagina">
         <div>
-          <div className="rastro">Analítica · Reportes</div>
-          <h1>Reportes estadísticos</h1>
-          <p className="tenue" style={{ marginTop: '4px' }}>
-            Análisis operativo del sistema de alarmas del hospital.
-          </p>
+          <h1>Reportes y Analítica</h1>
+          <p className="tenue">Métricas de desempeño, tiempos de respuesta y análisis estadístico.</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button type="button" className="btn btn-secundario" id="expPdf" onClick={handleExportarPdf}>
-            <Icono nombre="descargar" size={16} /> PDF
+          <button type="button" className="btn btn-secundario" onClick={handleExportarCSV}>
+            <Icono nombre="descargar" size={18} /> Exportar CSV
           </button>
-          <button type="button" className="btn btn-primario" id="expCsv" onClick={handleExportarCsv}>
-            <Icono nombre="descargar" size={16} /> CSV
+          <button type="button" className="btn btn-primario" onClick={handleExportarPDF}>
+            <Icono nombre="descargar" size={18} /> Exportar PDF Oficial
           </button>
         </div>
       </div>
 
-      <div className="reportes-layout">
-        {/* ─── Panel Lateral de Filtros ───────────────────────────── */}
-        <aside className="panel-filtros">
-          <div className="card">
-            <h4>
-              <Icono nombre="filtro" size={14} /> Filtros
-            </h4>
-            <div className="grupo">
-              <div className="campo">
-                <label>Desde</label>
-                <input type="date" value={fDesde} onChange={(e) => setFDesde(e.target.value)} />
-              </div>
-              <div style={{ height: '8px' }} />
-              <div className="campo">
-                <label>Hasta</label>
-                <input type="date" value={fHasta} onChange={(e) => setFHasta(e.target.value)} />
-              </div>
-            </div>
+      {/* Layout: Barra Lateral de Filtros + Tablero Analítico */}
+      <div className="layout-reportes">
+        {/* Barra Lateral de Filtros */}
+        <aside className="panel-filtros-reportes">
+          <div className="titulo-seccion">
+            <Icono nombre="filtrar" size={16} /> Filtros de reporte
+          </div>
 
-            <div className="grupo">
-              <label className="mayuscula tenue" style={{ display: 'block', marginBottom: '6px' }}>
-                Áreas
-              </label>
-              <div id="chipsArea" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {initialAreas.map((a) => (
+          <div className="grupo-filtro">
+            <label>Rango de fechas</label>
+            <div className="rango-fechas">
+              <input type="date" className="input" value={fDesde} onChange={(e) => setFDesde(e.target.value)} />
+              <input type="date" className="input" value={fHasta} onChange={(e) => setFHasta(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grupo-filtro">
+            <label>Áreas hospitalarias</label>
+            <div className="chips-areas">
+              {initialAreas.map((a) => {
+                const activo = areasSel.has(a.id);
+                return (
                   <button
                     key={a.id}
                     type="button"
-                    className={`chip ${areasSel.has(a.id) ? 'activo' : ''}`}
+                    className={`chip-area ${activo ? 'activo' : ''}`}
                     onClick={() => toggleArea(a.id)}
                   >
+                    <span className="dot" style={{ background: a.color }} />
                     {a.abrev}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
+          </div>
 
-            <div className="grupo">
-              <div className="campo">
-                <label>Origen</label>
-                <select value={origen} onChange={(e) => setOrigen(e.target.value)}>
-                  <option value="todos">Todos</option>
-                  {initialOrigenesLlamado.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          <div className="grupo-filtro">
+            <label>Origen del llamado</label>
+            <select className="select" value={origen} onChange={(e) => setOrigen(e.target.value)}>
+              <option value="todos">Todos los orígenes</option>
+              {initialOrigenesLlamado.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div className="grupo">
-              <div className="campo">
-                <label>Tipo</label>
-                <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
-                  <option value="todos">Todos</option>
-                  <option value="normal">Normal</option>
-                  <option value="emergencia">Emergencia</option>
-                  <option value="codigo-azul">Código Azul</option>
-                </select>
-              </div>
-            </div>
+          <div className="grupo-filtro">
+            <label>Tipo de llamado</label>
+            <select className="select" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+              <option value="todos">Todos los tipos</option>
+              {initialTiposLlamado.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div className="grupo">
-              <div className="campo">
-                <label>Enfermero</label>
-                <select value={enfermero} onChange={(e) => setEnfermero(e.target.value)}>
-                  <option value="todos">Todos</option>
-                  {enfermeros.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          <div className="grupo-filtro">
+            <label>Enfermero/a</label>
+            <select className="select" value={enfermero} onChange={(e) => setEnfermero(e.target.value)}>
+              <option value="todos">Todo el personal</option>
+              {enfermeros.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <button
-              type="button"
-              className="btn btn-fantasma btn-bloque btn-sm"
-              id="limpiar"
-              onClick={limpiarFiltros}
-            >
-              Limpiar filtros
+          <div style={{ marginTop: '16px' }}>
+            <button type="button" className="btn btn-secundario btn-full" onClick={limpiarFiltros}>
+              <Icono nombre="limpiar" size={16} /> Limpiar filtros
             </button>
           </div>
         </aside>
 
-        {/* ─── Tablero Analítico Principal ────────────────────────── */}
+        {/* Tablero Analítico Principal */}
         <section id="dashReportes">
           {/* Fila superior con KPIs */}
           <div className="kpi-grilla" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: '20px' }}>
@@ -407,52 +398,7 @@ export default function ReportesPage() {
           </div>
 
           {/* Resumen por tipo x estado */}
-          <div className="card" style={{ marginBottom: '20px' }}>
-            <div className="titulo-card">
-              <h3>Resumen por tipo × estado</h3>
-            </div>
-            <div className="tabla-scroll">
-              <table className="tabla">
-                <thead>
-                  <tr>
-                    <th>Tipo</th>
-                    <th>Atendidos</th>
-                    <th>No atendidos</th>
-                    <th>Total</th>
-                    <th>% atención</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {['normal', 'emergencia', 'codigo-azul'].map((t) => {
-                    const arr = lista.filter((l) => l.tipo === t);
-                    const at = arr.filter((l) => l.estado === 'atendido').length;
-                    const na = arr.filter((l) => l.estado === 'no-atendido').length;
-                    const nom = t === 'codigo-azul' ? 'Código Azul' : t === 'emergencia' ? 'Emergencia' : 'Normal';
-                    const pct = arr.length ? Math.round((at / arr.length) * 100) : 0;
-                    return (
-                      <tr key={t}>
-                        <td>
-                          <strong>{nom}</strong>
-                        </td>
-                        <td>{at}</td>
-                        <td>{na}</td>
-                        <td>{arr.length}</td>
-                        <td>
-                          <span
-                            className={`badge ${
-                              pct >= 80 ? 'b-verde' : pct >= 50 ? 'b-ambar' : 'b-rojo'
-                            }`}
-                          >
-                            {pct}%
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <ResumenTipoEstadoCard lista={lista} />
 
           {/* Gráficos Fila 1 */}
           <div className="grilla-2">
@@ -479,11 +425,7 @@ export default function ReportesPage() {
             <div className="titulo-card">
               <h3>Evolución diaria de llamados</h3>
             </div>
-            <LineChart
-              series={datosLineas.series}
-              labelsX={datosLineas.labelsX}
-              className="grande"
-            />
+            <LineChart series={datosLineas.series} labelsX={datosLineas.labelsX} className="grande" />
           </div>
 
           {/* Gráficos Fila 3: Origen por área + Ranking */}
@@ -492,34 +434,10 @@ export default function ReportesPage() {
               <div className="titulo-card">
                 <h3>Origen del llamado por área</h3>
               </div>
-              <StackedBarChart
-                categorias={origenesApiladas.categorias}
-                series={origenesApiladas.series}
-                className="grande"
-              />
+              <StackedBarChart categorias={origenesApiladas.categorias} series={origenesApiladas.series} className="grande" />
             </div>
 
-            <div className="card">
-              <div className="titulo-card">
-                <h3>Ranking de enfermeros</h3>
-              </div>
-              <div className="ranking" id="ranking">
-                {ranking.length ? (
-                  ranking.map((r, i) => (
-                    <div key={r.u.id} className="fila">
-                      <div className="pos">{i + 1}</div>
-                      <img className="avatar" src={r.u.avatar} alt="" />
-                      <div className="nombre">{r.u.nombre}</div>
-                      <div className="metric">
-                        <strong>{r.count}</strong> atenciones · {segundosADuracion(r.prom)} prom.
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="tenue">Sin datos para los filtros elegidos.</p>
-                )}
-              </div>
-            </div>
+            <RankingEnfermerosTable ranking={ranking} segundosADuracion={segundosADuracion} />
           </div>
         </section>
       </div>
