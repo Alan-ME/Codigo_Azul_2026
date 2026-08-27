@@ -26,7 +26,7 @@ import { authenticateJWT } from './core/middlewares/auth.middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const REACT_DIST_DIR = join(__dirname, '..', 'codigo-azul-web', 'dist');
+const REACT_DIST_DIR = join(__dirname, '..', 'client', 'dist');
 
 const app = express();
 

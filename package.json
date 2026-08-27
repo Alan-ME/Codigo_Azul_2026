@@ -9,9 +9,9 @@
   },
   "scripts": {
     "dev": "nodemon src/server.js",
-    "dev:web": "npm run dev --prefix codigo-azul-web",
-    "build:web": "npm run build --prefix codigo-azul-web",
-    "build": "npm run build --prefix codigo-azul-web",
+    "dev:web": "npm run dev --prefix client",
+    "build:web": "npm run build --prefix client",
+    "build": "npm run build --prefix client",
     "start": "node src/server.js",
     "start:all": "node scripts/start-all.js",
     "stop": "node scripts/stop-all.js",
