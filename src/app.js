@@ -93,12 +93,12 @@ app.get('/api/v1/ubicaciones', authenticateJWT, incidenteController.listarUbicac
 if (fs.existsSync(REACT_DIST_DIR)) {
   app.use(express.static(REACT_DIST_DIR));
   
-  // Soporte universal para SPA Client Routing (/dashboard, /alarma, /panico, /reanimador, /login)
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
-      return next();
+  // Soporte universal para SPA Client Routing en Express 5 (/dashboard, /alarma, /panico, /reanimador, /login)
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/socket.io')) {
+      return res.sendFile(join(REACT_DIST_DIR, 'index.html'));
     }
-    res.sendFile(join(REACT_DIST_DIR, 'index.html'));
+    next();
   });
 }
 
