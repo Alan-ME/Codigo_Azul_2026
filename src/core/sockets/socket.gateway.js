@@ -127,6 +127,7 @@ export function initSocketGateway(httpServer) {
     const incNormalizado = normalizarIncidente(payload);
     console.log(`[SOCKET] Retransmitiendo cancelación de incidente #${incNormalizado.id}.`);
 
+    io.emit('incidente:actualizado', incNormalizado);
     io.emit('incidente:cancelado', incNormalizado);
     io.emit('codigo_azul_cancelado', incNormalizado);
   });
@@ -136,6 +137,7 @@ export function initSocketGateway(httpServer) {
     const incNormalizado = normalizarIncidente(payload);
     console.log(`[SOCKET] Retransmitiendo resolucion de incidente #${incNormalizado.id}.`);
 
+    io.emit('incidente:actualizado', incNormalizado);
     io.emit('incidente:resuelto', incNormalizado);
     io.emit('codigo_azul_resuelto', incNormalizado);
   });

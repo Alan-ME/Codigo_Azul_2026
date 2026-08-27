@@ -96,12 +96,19 @@ export function IncidentesProvider({ children }) {
       });
     });
 
+    const handleCierre = (inc) => {
+      soundService.stop();
+      setLlamadosActivos((prev) => prev.filter((x) => x.backendId !== inc.id && x.id !== 'la-bd-' + inc.id));
+      toast({ titulo: 'Incidente Finalizado', msj: 'Código Azul cerrado en el hospital', tipo: 'info' });
+    };
+
+    socket.on('incidente:cancelado', handleCierre);
+    socket.on('incidente:resuelto', handleCierre);
+
     socket.on('incidente:actualizado', (inc) => {
       const estadoNorm = (inc.estado || '').toUpperCase();
       if (estadoNorm === 'CANCELADO' || estadoNorm === 'RESUELTO') {
-        soundService.stop();
-        setLlamadosActivos((prev) => prev.filter((x) => x.backendId !== inc.id && x.id !== 'la-bd-' + inc.id));
-        toast({ titulo: 'Incidente Resuelto', msj: `Código Azul cerrado en el hospital`, tipo: 'info' });
+        handleCierre(inc);
       } else {
         if (estadoNorm === 'EN_ATENCION') {
           soundService.stop();
