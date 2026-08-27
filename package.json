@@ -10,8 +10,8 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "dev:web": "npm run dev --prefix client",
-    "build:web": "npm run build --prefix client",
-    "build": "npm run build --prefix client",
+    "build:web": "npm --prefix client install --include=dev && npm --prefix client run build",
+    "build": "npm --prefix client install --include=dev && npm --prefix client run build",
     "start": "node src/server.js",
     "start:all": "node scripts/start-all.js",
     "stop": "node scripts/stop-all.js",

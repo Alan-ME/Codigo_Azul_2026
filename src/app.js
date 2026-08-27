@@ -93,6 +93,9 @@ if (fs.existsSync(REACT_DIST_DIR)) {
   // Fallback SPA para todas las rutas no-API hacia index.html de React
   app.use((req, res, next) => {
     if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+      if (req.path.includes('.') && !req.path.endsWith('.html')) {
+        return res.status(404).send('Asset no encontrado');
+      }
       return res.sendFile(join(REACT_DIST_DIR, 'index.html'));
     }
     next();
