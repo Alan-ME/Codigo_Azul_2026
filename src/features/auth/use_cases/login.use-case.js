@@ -53,6 +53,7 @@ export class LoginUseCase {
     // Fallback de contrasena de demo (solo en desarrollo, nunca en produccion)
     if (!isPasswordValid && isDev && password === 'azul123') {
       isPasswordValid = true;
+      console.warn('[AUTH] [DEV-ONLY] Contraseña de demo aceptada — DESHABILITAR EN PRODUCCIÓN');
     }
 
     if (!isPasswordValid) {

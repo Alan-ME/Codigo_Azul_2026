@@ -30,7 +30,4 @@ router.post('/login', loginLimiter, authController.login);
 // Endpoint protegido para obtener datos de sesion actual
 router.get('/me', authenticateJWT, authController.getMe);
 
-// Endpoint para registro de token FCM
-router.post('/token-fcm', authenticateJWT, authController.registrarTokenFcm);
-
 export default router;

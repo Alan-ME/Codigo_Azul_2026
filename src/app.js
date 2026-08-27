@@ -15,14 +15,12 @@ import { requestLogger } from './core/middlewares/request-logger.middleware.js';
 import { errorHandler } from './core/middlewares/error-handler.middleware.js';
 import { sendSuccess } from './core/helpers/api-response.js';
 import { query } from './core/config/db.js';
-import { testFirebaseConnection } from './config/firebase.config.js';
+import { testFirebaseConnection } from './core/config/firebase.config.js';
 
-// -- Feature Routers y Middlewares ────────────────────────────
+// -- Feature Routers ──────────────────────────────────────────
 import authRoutes from './features/auth/presentation/auth.routes.js';
 import incidenteRoutes from './features/codigo_azul/presentation/incidente.routes.js';
 import fcmRoutes from './features/fcm/presentation/fcm.routes.js';
-import { incidenteController } from './features/codigo_azul/presentation/incidente.controller.js';
-import { authenticateJWT } from './core/middlewares/auth.middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -86,7 +84,6 @@ app.get('/api/v1/health', async (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/incidentes', incidenteRoutes);
 app.use('/api/v1/fcm', fcmRoutes);
-app.get('/api/v1/ubicaciones', authenticateJWT, incidenteController.listarUbicaciones);
 
 // -- Servir Frontend React (codigo-azul-web/dist) ─────────────
 if (fs.existsSync(REACT_DIST_DIR)) {

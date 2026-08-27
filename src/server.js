@@ -13,7 +13,7 @@ import { createServer } from 'node:http';
 import app from './app.js';
 import { config } from './core/config/env.js';
 import { testConnection, closePool } from './core/config/db.js';
-import { testFirebaseConnection } from './config/firebase.config.js';
+import { testFirebaseConnection } from './core/config/firebase.config.js';
 
 import { initSocketGateway } from './core/sockets/socket.gateway.js';
 import { initFCMModule } from './features/fcm/fcm.module.js';

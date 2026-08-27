@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 import { fcmRepository } from '../data/fcm.repository.js';
 import { ApiError } from '../../../core/helpers/api-error.js';
-import admin from '../../../config/firebase.config.js';
+import admin from '../../../core/config/firebase.config.js';
 
 export class RegistrarTokenUseCase {
   /**

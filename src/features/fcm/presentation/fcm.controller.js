@@ -9,7 +9,7 @@ import { sendSuccess } from '../../../core/helpers/api-response.js';
 import { registrarTokenUseCase } from '../use_cases/registrar-token.use-case.js';
 import { desregistrarTokenUseCase } from '../use_cases/desregistrar-token.use-case.js';
 import { fcmRepository } from '../data/fcm.repository.js';
-import admin from '../../../config/firebase.config.js';
+import admin from '../../../core/config/firebase.config.js';
 
 export class FcmController {
   /**

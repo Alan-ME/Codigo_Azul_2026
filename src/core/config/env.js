@@ -26,22 +26,22 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-/** Objeto de configuración tipado y congelado. */
+/** Objeto de configuración inmutable (deep frozen). */
 export const config = Object.freeze({
   port:        parseInt(process.env.PORT, 10),
   nodeEnv:     process.env.NODE_ENV || 'development',
   corsOrigin:  process.env.CORS_ORIGIN || 'http://localhost:3000',
 
-  db: {
+  db: Object.freeze({
     host:      process.env.DB_HOST,
     port:      parseInt(process.env.DB_PORT, 10),
     database:  process.env.DB_NAME,
     user:      process.env.DB_USER,
     password:  process.env.DB_PASSWORD,
-  },
+  }),
 
-  jwt: {
+  jwt: Object.freeze({
     secret:    process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRES_IN,
-  },
+  }),
 });

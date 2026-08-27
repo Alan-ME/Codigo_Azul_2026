@@ -102,23 +102,8 @@ export class IncidenteController {
    * GET /api/v1/incidentes/activos
    */
   listarActivos = asyncHandler(async (req, res) => {
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
-
-    const todos = await listarActivosUseCase.execute();
-    const total = todos.length;
-    const offset = (page - 1) * limit;
-    const pagina = todos.slice(offset, offset + limit);
-
-    return sendSuccess(res, {
-      incidentes: pagina,
-      paginacion: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    }, 200, 'Listado de incidentes activos.');
+    const incidentes = await listarActivosUseCase.execute();
+    return sendSuccess(res, incidentes, 200, 'Listado de incidentes activos.');
   });
 
   /**

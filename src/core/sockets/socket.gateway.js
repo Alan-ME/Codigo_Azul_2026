@@ -38,7 +38,7 @@ function normalizarIncidente(rawData) {
     id:          d.incidenteId || d.id,
     codigoUUID:  d.codigoUUID || d.codigo_uuid,
     camaId:      d.camaId || d.ubicacionId || d.ubicacion?.id,
-    estado:      (d.estado || 'ACTIVADO').toLowerCase().replace('_', '-'),
+    estado:      (d.estado || 'ACTIVADO').toLowerCase().replaceAll('_', '-'),
     estadoRaw:   d.estado,
     ubicacion:   d.ubicacion,
     activadoPor: d.activadoPor,
@@ -58,8 +58,9 @@ export function initSocketGateway(httpServer) {
 
   const io = new Server(httpServer, {
     cors: {
-      origin: config.corsOrigin || 'http://localhost:3000',
+      origin: [config.corsOrigin, 'http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'].filter(Boolean),
       methods: ['GET', 'POST', 'PUT'],
+      credentials: true,
     },
   });
 

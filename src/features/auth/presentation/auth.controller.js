@@ -25,15 +25,6 @@ export class AuthController {
   getMe = asyncHandler(async (req, res) => {
     return sendSuccess(res, { user: req.user }, 200, 'Perfil obtenido.');
   });
-
-  /**
-   * POST /api/v1/usuarios/token-fcm
-   * Registra el token de notificaciones Push FCM del dispositivo móvil.
-   */
-  registrarTokenFcm = asyncHandler(async (req, res) => {
-    const { token } = req.body;
-    return sendSuccess(res, { registrado: true, token }, 200, 'Token FCM registrado.');
-  });
 }
 
 export const authController = new AuthController();

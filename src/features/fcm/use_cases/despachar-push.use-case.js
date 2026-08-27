@@ -4,7 +4,7 @@
 // Fase:        3 — Caso de Uso: Despacho de Push Notifications de Alta Prioridad
 // Normativa:   Clean Architecture / Doze Mode Bypass / IEEE 830 (APA 7.ª Ed.)
 // ─────────────────────────────────────────────────────────────
-import admin from '../../../config/firebase.config.js';
+import admin from '../../../core/config/firebase.config.js';
 import { fcmRepository } from '../data/fcm.repository.js';
 import { auditarTelemetriaUseCase } from './auditar-telemetria.use-case.js';
 

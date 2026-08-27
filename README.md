@@ -2,7 +2,7 @@
 
 [![Node.js Version](https://img.shields.io/badge/Node.js-v24.18.0_LTS-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-v18.4_ACID-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Express](https://img.shields.io/badge/Express-v4.21_REST-000000?logo=express&logoColor=white)](https://expressjs.com/)
+[![Express](https://img.shields.io/badge/Express-v5.2.1_REST-000000?logo=express&logoColor=white)](https://expressjs.com/)
 [![Architecture](https://img.shields.io/badge/Pattern-Clean_Architecture_%2B_Feature--First-blueviolet)](#arquitectura-del-sistema)
 [![Standard](https://img.shields.io/badge/Norma-IEEE_830_%7C_ISO_25010_%7C_APA_7-00599C)](#normativas-y-estandares)
 [![Tests](https://img.shields.io/badge/Tests-17%2F17_Passing_(100%25)-brightgreen)](#verificacion-y-metricas-de-calidad)
@@ -245,6 +245,10 @@ erDiagram
 | `PUT` | `/api/v1/incidentes/:id/ack` | `REANIMADOR_MEDICO`, `ADMINISTRADOR` | `200`, `400`, `403`, `404`, `409` | Confirmacion de presencia y calculo de latencia en ms. |
 | `POST` | `/api/v1/incidentes/:id/cancelar` | `ACTIVADOR` (<60s), `GUARDIA`, `ADMIN` | `200`, `400`, `403`, `404`, `409` | Cancelacion con motivo obligatorio auditado en JSONB. |
 | `GET` | `/api/v1/incidentes/:id` | JWT | `200`, `401`, `404` | Detalle completo con linea de tiempo de auditoria. |
+| `POST` | `/api/v1/fcm/token` | JWT | `201`, `400`, `401` | Registra token FCM del dispositivo móvil y lo suscribe a topics. |
+| `DELETE` | `/api/v1/fcm/token` | JWT | `200`, `400`, `401` | Desregistra token FCM del dispositivo al cerrar sesión. |
+| `GET` | `/api/v1/fcm/estado` | JWT | `200`, `401` | Diagnóstico de conectividad con Firebase Cloud Messaging. |
+| `POST` | `/api/v1/fcm/test` | `ADMINISTRADOR` | `200`, `400`, `403` | Prueba de envío dry-run contra servidores de Google FCM. |
 
 ---
 
@@ -331,7 +335,7 @@ npm test
   [PASS] ACK 1 procesado con exito
   [PASS] Estado actualizado a EN_ATENCION
   [PASS] Reanimador 1 asignado como Reanimador Principal
-  [PASS] Latencia calculada: 0.67s
+  [PASS] Latencia calculada con precision de milisegundos
 
 [TEST 8] Confirmacion de Asistencia ACK Secundario (Reanimador de Apoyo)
   [PASS] ACK 2 procesado correctamente
@@ -344,7 +348,7 @@ npm test
 
 [TEST 10] Consulta de Trazabilidad e Historial Inmutable de Auditoria
   [PASS] Detalle obtenido con exito
-  [PASS] Historial completo registrado (5 eventos auditados)
+  [PASS] Historial completo registrado (eventos auditados)
 
 [TEST 11] Validacion de Seguridad RBAC (Acceso no autorizado rechazado)
   [PASS] Guardia intentando activar es rechazado con HTTP 403 Forbidden
@@ -352,6 +356,21 @@ npm test
 [TEST 12] Prueba de Blindaje Medico-Legal (Trigger Append-Only en PostgreSQL)
   [PASS] Trigger PostgreSQL bloqueo exitosamente intento de DELETE en auditoria
   [PASS] Trigger PostgreSQL bloqueo exitosamente intento de UPDATE en auditoria
+
+[TEST 13] Estado del Servicio FCM (GET /api/v1/fcm/estado)
+  [PASS] Diagnostico responde 200 con proyecto y estado ONLINE
+
+[TEST 14] Registro de Token FCM de Dispositivo Movil (POST /api/v1/fcm/token)
+  [PASS] Token registrado y persistido en usuarios_dispositivos_fcm
+
+[TEST 15] Despacho Automatico de Notificacion Push ante Codigo Azul
+  [PASS] Payload emitido con prioridad alta y Doze Mode Bypass
+
+[TEST 16] Auditoria y Telemetria de Entregas FCM en Base de Datos
+  [PASS] Registro de telemetria insertado en fcm_notificaciones_log
+
+[TEST 17] Desregistro de Token FCM al Cerrar Sesion (DELETE /api/v1/fcm/token)
+  [PASS] Token eliminado de la base de datos al cerrar sesion
 
 ===========================================================
   TODAS LAS PRUEBAS FUNCIONALES Y DE SEGURIDAD PASARON (100%)
