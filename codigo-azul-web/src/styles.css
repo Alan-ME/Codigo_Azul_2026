@@ -199,16 +199,148 @@ button { font-family: inherit; }
   letter-spacing: 1px;
   font-size: .85rem;
 }
+.cronometro-contenedor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
 .cronometro {
   font-variant-numeric: tabular-nums;
   font-size: 1.4rem;
   font-weight: 800;
+  transition: color .3s ease;
 }
+.cronometro--advertencia {
+  color: #ffd166;
+  text-shadow: 0 0 10px rgba(255, 209, 102, 0.5);
+}
+.cronometro--critico {
+  color: #ff3344;
+  text-shadow: 0 0 12px rgba(255, 51, 68, 0.8);
+  animation: titileo-critico .8s ease-in-out infinite;
+}
+
+@keyframes titileo-critico {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.06); opacity: 0.85; }
+}
+
+.badge-aha {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  letter-spacing: .3px;
+  white-space: nowrap;
+}
+.badge-aha--advertencia {
+  background: rgba(255, 170, 0, 0.25);
+  color: #ffc247;
+  border: 1px solid rgba(255, 170, 0, 0.5);
+}
+.badge-aha--critico {
+  background: rgba(255, 20, 40, 0.35);
+  color: #ffccd0;
+  border: 1px solid rgba(255, 50, 70, 0.7);
+  animation: pulso-aha 1s infinite alternate;
+}
+
+@keyframes pulso-aha {
+  from { box-shadow: 0 0 4px rgba(255, 20, 40, 0.4); }
+  to   { box-shadow: 0 0 12px rgba(255, 20, 40, 0.9); }
+}
+
 .card__body { display: flex; flex-direction: column; gap: 6px; }
 .card__body p { margin: 0; font-size: .95rem; line-height: 1.4; }
 .card__ubicacion { margin: 0 0 4px; font-size: 1.15rem; }
+
+/* ─── Equipamiento / Carro de Paro ────────────────────────── */
+.card__equipamiento {
+  margin: 4px 0 6px;
+}
+.badge-carro {
+  display: inline-block;
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  line-height: 1.3;
+}
+.badge-carro--disponible {
+  background: rgba(34, 160, 107, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(34, 160, 107, 0.4);
+}
+.badge-carro--requerido {
+  background: rgba(225, 29, 43, 0.25);
+  color: #ffb8be;
+  border: 1px solid rgba(225, 29, 43, 0.6);
+  font-weight: 500;
+}
+
+/* ─── Hitos Clínicos de Reanimación ───────────────────────── */
+.card__hitos {
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hitos-titulo {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.hitos-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.btn-hito {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.btn-hito:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+.btn-hito:disabled { opacity: 0.5; cursor: not-allowed; }
+.hitos-confirmacion {
+  font-size: 0.75rem;
+  color: #6ee7b7;
+  font-weight: 600;
+}
+
+.card__resultado {
+  background: rgba(34, 160, 107, 0.25);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(34, 160, 107, 0.4);
+  color: #a7f3d0;
+}
+
 .card__actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .card__actions .btn { flex: 1 1 140px; }
+
+.btn--success {
+  background: var(--verde);
+  color: white;
+}
+.btn--success:not(:disabled):hover {
+  background: #1b8a5b;
+}
 
 .card--rojo {
   background: linear-gradient(160deg, var(--rojo) 0%, var(--rojo-fuerte) 100%);
@@ -242,28 +374,53 @@ button { font-family: inherit; }
   padding: 20px;
 }
 .modal {
-  width: min(460px, 100%);
+  width: min(520px, 100%);
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   box-shadow: var(--shadow);
 }
-.modal h2 { margin: 0; }
-.modal p  { margin: 0; color: var(--text-muted); font-size: .95rem; }
+.modal h2 { margin: 0; font-size: 1.3rem; }
+.modal__sub { margin: 0; color: var(--text-muted); font-size: 0.88rem; line-height: 1.3; }
+.modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.92rem;
+}
+.modal__hint {
+  font-weight: normal;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.modal__select {
+  background: #0a1224;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+.modal__select:focus {
+  outline: 2px solid var(--azul);
+  outline-offset: 1px;
+}
 .modal textarea {
   resize: vertical;
-  min-height: 96px;
+  min-height: 80px;
   background: #0a1224;
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 .modal textarea:focus { outline: 2px solid var(--azul); outline-offset: 1px; }
 .modal__error {
@@ -280,3 +437,4 @@ button { font-family: inherit; }
   justify-content: flex-end;
   margin-top: 6px;
 }
+

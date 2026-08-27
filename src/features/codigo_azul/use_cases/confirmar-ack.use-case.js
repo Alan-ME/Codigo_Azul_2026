@@ -100,6 +100,7 @@ export class ConfirmarAckUseCase {
       await client.query('COMMIT');
 
       const payloadRespuesta = {
+        id:                        incidente.id,
         incidenteId:               incidente.id,
         codigoUUID:                incidente.codigo_uuid,
         estado:                    EstadoIncidente.EN_ATENCION,
@@ -111,10 +112,12 @@ export class ConfirmarAckUseCase {
           rol:    user.rol,
         },
         ubicacion: {
-          edificio:   incidente.edificio,
-          piso:       incidente.piso,
-          sectorSala: incidente.sector_sala,
-          cama:       incidente.cama,
+          id:             incidente.ubicacion_id,
+          edificio:       incidente.edificio,
+          piso:           incidente.piso,
+          sectorSala:     incidente.sector_sala,
+          cama:           incidente.cama,
+          tieneCarroParo: incidente.tiene_carro_paro,
         },
       };
 

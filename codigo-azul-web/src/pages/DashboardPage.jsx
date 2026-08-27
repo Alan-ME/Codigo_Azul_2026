@@ -4,11 +4,13 @@ import { useIncidentes } from '../context/IncidentesContext.jsx';
 import { soundService } from '../services/soundService.js';
 import IncidenteCard from '../components/IncidenteCard.jsx';
 import ModalCancelacion from '../components/ModalCancelacion.jsx';
+import ModalResolucion from '../components/ModalResolucion.jsx';
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
-  const { incidentes, conectado, confirmarAck, cancelar } = useIncidentes();
+  const { incidentes, conectado, confirmarAck, cancelar, resolver, registrarEventoClinico } = useIncidentes();
   const [cancelandoId, setCancelandoId] = useState(null);
+  const [resolviendoIncidente, setResolviendoIncidente] = useState(null);
 
   // Si el usuario aterriza aquí con una sesión persistida, desbloqueamos el
   // audio en el primer clic para que la sirena pueda dispararse luego.
@@ -22,6 +24,12 @@ export default function DashboardPage() {
     if (cancelandoId === null) return;
     await cancelar(cancelandoId, motivo);
     setCancelandoId(null);
+  };
+
+  const onConfirmResolver = async (resultadoClinico, observaciones) => {
+    if (!resolviendoIncidente) return;
+    await resolver(resolviendoIncidente.id, resultadoClinico, observaciones);
+    setResolviendoIncidente(null);
   };
 
   return (
@@ -52,6 +60,8 @@ export default function DashboardPage() {
             incidente={inc}
             onAck={() => confirmarAck(inc.id)}
             onCancel={() => setCancelandoId(inc.id)}
+            onResolver={() => setResolviendoIncidente(inc)}
+            onEventoClinico={registrarEventoClinico}
           />
         ))}
       </main>
@@ -62,6 +72,15 @@ export default function DashboardPage() {
           onConfirm={onConfirmCancel}
         />
       )}
+
+      {resolviendoIncidente !== null && (
+        <ModalResolucion
+          incidente={resolviendoIncidente}
+          onCancel={() => setResolviendoIncidente(null)}
+          onConfirm={onConfirmResolver}
+        />
+      )}
     </div>
   );
 }
+

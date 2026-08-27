@@ -21,11 +21,13 @@ export class IncidenteRepository {
         i.activado_por_id,
         i.reanimador_id,
         i.estado,
+        i.resultado_clinico,
         i.created_at,
         u.edificio,
         u.piso,
         u.sector_sala,
-        u.cama
+        u.cama,
+        u.tiene_carro_paro
       FROM incidentes i
       INNER JOIN ubicaciones u ON u.id = i.ubicacion_id
       WHERE i.ubicacion_id = $1
@@ -63,6 +65,7 @@ export class IncidenteRepository {
         activado_por_id,
         reanimador_id,
         estado,
+        resultado_clinico,
         created_at;
     `;
     const executor = client || { query };
@@ -82,6 +85,7 @@ export class IncidenteRepository {
         i.id,
         i.codigo_uuid,
         i.estado,
+        i.resultado_clinico,
         i.motivo_cancelacion,
         i.created_at,
         i.resolved_at,
@@ -91,6 +95,7 @@ export class IncidenteRepository {
         ub.piso,
         ub.sector_sala,
         ub.cama,
+        ub.tiene_carro_paro,
         -- Activador
         act.id AS activador_id,
         act.nombre AS activador_nombre,
@@ -120,18 +125,20 @@ export class IncidenteRepository {
    * @param {string} fields.estado
    * @param {number|null} [fields.reanimadorId]
    * @param {string|null} [fields.motivoCancelacion]
+   * @param {string|null} [fields.resultadoClinico]
    * @param {boolean} [fields.marcarResuelto]
    * @param {import('pg').PoolClient} [client]
    * @returns {Promise<object>}
    */
-  async update(id, { estado, reanimadorId = null, motivoCancelacion = null, marcarResuelto = false }, client = null) {
+  async update(id, { estado, reanimadorId = null, motivoCancelacion = null, resultadoClinico = null, marcarResuelto = false }, client = null) {
     const text = `
       UPDATE incidentes
       SET
         estado = $2,
         reanimador_id = COALESCE($3, reanimador_id),
         motivo_cancelacion = COALESCE($4, motivo_cancelacion),
-        resolved_at = CASE WHEN $5 = true THEN NOW() ELSE resolved_at END
+        resultado_clinico = COALESCE($5, resultado_clinico),
+        resolved_at = CASE WHEN $6 = true THEN NOW() ELSE resolved_at END
       WHERE id = $1
       RETURNING
         id,
@@ -140,6 +147,7 @@ export class IncidenteRepository {
         activado_por_id,
         reanimador_id,
         estado,
+        resultado_clinico,
         motivo_cancelacion,
         created_at,
         resolved_at;
@@ -150,6 +158,7 @@ export class IncidenteRepository {
       estado,
       reanimadorId,
       motivoCancelacion,
+      resultadoClinico,
       marcarResuelto,
     ]);
     return result.rows[0];
@@ -165,6 +174,7 @@ export class IncidenteRepository {
         i.id,
         i.codigo_uuid,
         i.estado,
+        i.resultado_clinico,
         i.created_at,
         EXTRACT(EPOCH FROM (NOW() - i.created_at))::INT AS segundos_transcurridos,
         -- Ubicación
@@ -173,7 +183,8 @@ export class IncidenteRepository {
           'edificio', ub.edificio,
           'piso', ub.piso,
           'sectorSala', ub.sector_sala,
-          'cama', ub.cama
+          'cama', ub.cama,
+          'tieneCarroParo', ub.tiene_carro_paro
         ) AS ubicacion,
         -- Activador
         json_build_object(
@@ -209,7 +220,7 @@ export class IncidenteRepository {
    */
   async findUbicacionById(ubicacionId) {
     const text = `
-      SELECT id, edificio, piso, sector_sala, cama
+      SELECT id, edificio, piso, sector_sala, cama, tiene_carro_paro
       FROM ubicaciones
       WHERE id = $1
       LIMIT 1;
@@ -224,7 +235,7 @@ export class IncidenteRepository {
    */
   async listarUbicaciones() {
     const text = `
-      SELECT id, edificio, piso, sector_sala, cama
+      SELECT id, edificio, piso, sector_sala, cama, tiene_carro_paro
       FROM ubicaciones
       ORDER BY edificio, piso, sector_sala, cama;
     `;
@@ -234,3 +245,4 @@ export class IncidenteRepository {
 }
 
 export const incidenteRepository = new IncidenteRepository();
+

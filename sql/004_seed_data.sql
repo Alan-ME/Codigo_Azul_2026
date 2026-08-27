@@ -53,14 +53,16 @@ VALUES
 ON CONFLICT (email) DO NOTHING;
 
 -- 2. Inserción de Ubicaciones Hospitalarias
-INSERT INTO ubicaciones (edificio, piso, sector_sala, cama)
+INSERT INTO ubicaciones (edificio, piso, sector_sala, cama, tiene_carro_paro)
 VALUES
-  ('Monoblock Central', 1, 'Guardia General', 'Shockroom-01'),
-  ('Monoblock Central', 1, 'Guardia General', 'Shockroom-02'),
-  ('Monoblock Central', 2, 'Quirófano Central', 'Quirófano-03'),
-  ('Monoblock Central', 3, 'Unidad de Cuidados Intensivos', 'UCI-01'),
-  ('Monoblock Central', 3, 'Unidad de Cuidados Intensivos', 'UCI-04'),
-  ('Monoblock Central', 4, 'Unidad Coronaria (UCO)', 'UCO-02'),
-  ('Pabellón Materno-Infantil', 1, 'Neonatología', 'Cuna-05'),
-  ('Pabellón Quirúrgico', 0, 'Sala de Recuperación', 'Cama-08')
-ON CONFLICT (edificio, piso, sector_sala, cama) DO NOTHING;
+  ('Monoblock Central', 1, 'Guardia General', 'Shockroom-01', true),
+  ('Monoblock Central', 1, 'Guardia General', 'Shockroom-02', true),
+  ('Monoblock Central', 2, 'Quirófano Central', 'Quirófano-03', true),
+  ('Monoblock Central', 3, 'Unidad de Cuidados Intensivos', 'UCI-01', true),
+  ('Monoblock Central', 3, 'Unidad de Cuidados Intensivos', 'UCI-04', true),
+  ('Monoblock Central', 4, 'Unidad Coronaria (UCO)', 'UCO-02', true),
+  ('Pabellón Materno-Infantil', 1, 'Neonatología', 'Cuna-05', false),
+  ('Pabellón Quirúrgico', 0, 'Sala de Recuperación', 'Cama-08', false)
+ON CONFLICT (edificio, piso, sector_sala, cama) DO UPDATE
+  SET tiene_carro_paro = EXCLUDED.tiene_carro_paro;
+

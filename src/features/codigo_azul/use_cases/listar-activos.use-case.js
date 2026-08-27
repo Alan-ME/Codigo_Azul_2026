@@ -36,6 +36,25 @@ export class ListarActivosUseCase {
 
     return {
       ...incidente,
+      incidenteId: incidente.id,
+      ubicacion: {
+        id:             incidente.ubicacion_id,
+        edificio:       incidente.edificio,
+        piso:           incidente.piso,
+        sectorSala:     incidente.sector_sala,
+        cama:           incidente.cama,
+        tieneCarroParo: incidente.tiene_carro_paro,
+      },
+      activadoPor: {
+        id:     incidente.activador_id,
+        nombre: `${incidente.activador_nombre} ${incidente.activador_apellido}`,
+        rol:    incidente.activador_rol,
+      },
+      reanimador: incidente.reanimador_id ? {
+        id:     incidente.reanimador_id,
+        nombre: `${incidente.reanimador_nombre} ${incidente.reanimador_apellido}`,
+        rol:    incidente.reanimador_rol,
+      } : null,
       historialAuditoria: auditoria,
     };
   }

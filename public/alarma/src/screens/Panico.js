@@ -153,9 +153,17 @@ export async function montarPanico(contenedor, _params, signal) {
       btnDisparar.textContent = "Enviando…";
       try {
         const inc = await Api.activarIncidente(sel.cama.id);
-        Haptica.alarma();
         cerrar();
-        toast(`Alarma enviada · ${inc.id}`, { tipo: "exito", titulo: "CÓDIGO AZUL activo" });
+        if (inc.esOffline) {
+          Haptica.error();
+          toast("⚠️ Sin conexión Wi-Fi. Alarma encolada localmente: se reintenta automáticamente hasta conectar.", {
+            tipo: "aviso",
+            titulo: "MODO FUERA DE LÍNEA (Zona Muerta)",
+          });
+        } else {
+          Haptica.alarma();
+          toast(`Alarma enviada · #${inc.id}`, { tipo: "exito", titulo: "CÓDIGO AZUL activo" });
+        }
       } catch (error) {
         Haptica.error();
         btnDisparar.disabled = false;
@@ -164,4 +172,15 @@ export async function montarPanico(contenedor, _params, signal) {
       }
     });
   }
+
+  // Notificar cuando una alarma previamente encolada por falta de señal se entregó con éxito
+  const alDespacharOffline = (ev) => {
+    Haptica.confirmacion();
+    toast(`Alarma pendiente entregada con éxito tras reconexión (#${ev.detail?.id || 'OK'})`, {
+      tipo: "exito",
+      titulo: "RECONEXIÓN EXITOSA",
+    });
+  };
+  window.addEventListener("codigo_azul:alerta_despachada_offline", alDespacharOffline, { signal });
 }
+

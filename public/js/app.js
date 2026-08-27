@@ -7,12 +7,24 @@
   const App = window.App;
 
   // Cronómetro global de llamados activos: actualiza cada segundo
-  // los elementos con [data-cronometro="ISO..."] que estén en pantalla.
+  // los elementos con [data-cronometro="ISO..."] aplicando umbrales AHA (2 min advertencia, 3 min crítico).
   function tickCronometros() {
     document.querySelectorAll('[data-cronometro]').forEach(el => {
       const inicio = new Date(el.dataset.cronometro).getTime();
       const seg = Math.max(0, Math.floor((Date.now() - inicio) / 1000));
       el.textContent = App.ui.segundosADuracion(seg);
+
+      if (seg >= 180) {
+        el.classList.add('cron-critico');
+        el.classList.remove('cron-advertencia');
+        el.title = '🚨 >3 min sin respuesta (Límite AHA excedido)';
+      } else if (seg >= 120) {
+        el.classList.add('cron-advertencia');
+        el.classList.remove('cron-critico');
+        el.title = '⚠️ >2 min sin respuesta';
+      } else {
+        el.classList.remove('cron-advertencia', 'cron-critico');
+      }
     });
   }
   setInterval(tickCronometros, 1000);

@@ -15,6 +15,8 @@
     "restart": "node scripts/stop-all.js && node scripts/start-all.js",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
+    "build:web": "npm --prefix codigo-azul-web run build",
+    "build": "npm run build:web",
     "test": "node scripts/test-api.js"
   },
   "keywords": [

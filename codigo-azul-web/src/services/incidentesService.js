@@ -11,4 +11,15 @@ export const incidentesService = {
     apiClient
       .post(`/api/v1/incidentes/${incidenteId}/cancelar`, { motivo })
       .then((r) => r.data.data),
+
+  resolver: (incidenteId, resultadoClinico, observaciones) =>
+    apiClient
+      .put(`/api/v1/incidentes/${incidenteId}/resolver`, { resultadoClinico, observaciones })
+      .then((r) => r.data.data),
+
+  registrarEventoClinico: (incidenteId, tipoEvento, detalle) =>
+    apiClient
+      .post(`/api/v1/incidentes/${incidenteId}/evento-clinico`, { tipoEvento, detalle })
+      .then((r) => r.data.data),
 };
+

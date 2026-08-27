@@ -9,6 +9,7 @@ import { activarCodigoAzulUseCase } from '../use_cases/activar-codigo-azul.use-c
 import { confirmarAckUseCase } from '../use_cases/confirmar-ack.use-case.js';
 import { cancelarIncidenteUseCase } from '../use_cases/cancelar-incidente.use-case.js';
 import { resolverIncidenteUseCase } from '../use_cases/resolver-incidente.use-case.js';
+import { registrarEventoClinicoUseCase } from '../use_cases/registrar-evento-clinico.use-case.js';
 import { listarActivosUseCase } from '../use_cases/listar-activos.use-case.js';
 
 export class IncidenteController {
@@ -86,16 +87,40 @@ export class IncidenteController {
       throw ApiError.badRequest('El ID del incidente debe ser un entero positivo.');
     }
 
-    const { observaciones } = req.body;
+    const { resultadoClinico, observaciones } = req.body;
     const user = req.user;
 
     const result = await resolverIncidenteUseCase.execute({
       incidenteId,
+      resultadoClinico,
       observaciones,
       user,
     });
 
     return sendSuccess(res, result, 200, 'Incidente resuelto y ciclo clinico cerrado.');
+  });
+
+  /**
+   * POST /api/v1/incidentes/:id/evento-clinico
+   * Registro de hitos intermedios (AED, RCP, Adrenalina) durante la reanimación.
+   */
+  registrarEventoClinico = asyncHandler(async (req, res) => {
+    const incidenteId = parseInt(req.params.id, 10);
+    if (Number.isNaN(incidenteId) || incidenteId <= 0) {
+      throw ApiError.badRequest('El ID del incidente debe ser un entero positivo.');
+    }
+
+    const { tipoEvento, detalle } = req.body;
+    const user = req.user;
+
+    const result = await registrarEventoClinicoUseCase.execute({
+      incidenteId,
+      tipoEvento,
+      detalle,
+      user,
+    });
+
+    return sendSuccess(res, result, 201, 'Hito clínico registrado en auditoría inmutable.');
   });
 
   /**

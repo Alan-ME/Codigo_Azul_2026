@@ -87,15 +87,25 @@ app.use('/api/v1/incidentes', incidenteRoutes);
 app.use('/api/v1/fcm', fcmRoutes);
 app.get('/api/v1/ubicaciones', authenticateJWT, incidenteController.listarUbicaciones);
 
-// -- Frontend Integrado (public/) ─────────────────────────────
-// Dashboard PC hospitalario: http://localhost:4000/app
-app.use('/app', express.static(FRONTEND_DIR));
+// -- Frontend Integrado (React Web + PWA Móvil) ─────────────
+import fs from 'node:fs';
+const REACT_DIST_DIR = join(__dirname, '..', 'codigo-azul-web', 'dist');
 
-// App Móvil / PWA Alarma: http://localhost:4000/alarma y /movil
+// Dashboard PC hospitalario: sirve React SPA moderna si existe el build, o fallback a public/
+if (fs.existsSync(REACT_DIST_DIR)) {
+  app.use('/app', express.static(REACT_DIST_DIR));
+  app.get('/app/*', (req, res) => {
+    res.sendFile(join(REACT_DIST_DIR, 'index.html'));
+  });
+} else {
+  app.use('/app', express.static(FRONTEND_DIR));
+}
+
+// App Móvil / PWA Alarma para Médicos y Reanimadores: /alarma y /movil
 app.use('/alarma', express.static(join(FRONTEND_DIR, 'alarma')));
 app.use('/movil', express.static(join(FRONTEND_DIR, 'alarma')));
 
-// Redirección raíz hacia la aplicación web
+// Redirección raíz hacia el Dashboard
 app.get('/', (req, res) => {
   res.redirect('/app');
 });

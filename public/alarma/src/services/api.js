@@ -9,6 +9,9 @@ class ErrorApi extends Error {
   }
 }
 
+const CLAVE_COLA_OFFLINE = "codigo_azul_cola_offline";
+let workerReintentoActivo = false;
+
 async function tomarToken() {
   return Almacenamiento.leer(config.llaveJwt);
 }
@@ -37,15 +40,23 @@ function transformarAUbicacionesJerarquicas(lista) {
       sala = { id: `sala-${salaNombre}`, nombre: salaNombre, camas: [] };
       piso.salas.push(sala);
     }
-    sala.camas.push({ id: u.id, nombre: u.cama || `Cama ${u.id}` });
+    sala.camas.push({
+      id: u.id,
+      nombre: u.cama || `Cama ${u.id}`,
+      tieneCarroParo: u.tiene_carro_paro ?? u.tieneCarroParo ?? false,
+    });
   }
   return Array.from(edificiosMap.values());
 }
 
-async function peticion(metodo, ruta, cuerpo, { autenticado = true } = {}) {
+async function peticion(metodo, ruta, cuerpo, { autenticado = true, timeoutMs = 5000 } = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   const opciones = {
     method: metodo,
     headers: { "Content-Type": "application/json" },
+    signal: controller.signal,
   };
   if (autenticado) {
     const token = await tomarToken();
@@ -53,7 +64,22 @@ async function peticion(metodo, ruta, cuerpo, { autenticado = true } = {}) {
   }
   if (cuerpo !== undefined) opciones.body = JSON.stringify(cuerpo);
 
-  const resp = await fetch(config.baseApi + ruta, opciones);
+  let resp;
+  try {
+    resp = await fetch(config.baseApi + ruta, opciones);
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw new ErrorApi(
+      err.name === "AbortError"
+        ? "Tiempo de espera agotado al conectar con el servidor."
+        : "Sin conexión con el servidor (Modo Fuera de Línea).",
+      0,
+      { errorDeRed: true, original: err.message }
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
   const texto = await resp.text();
   const json = texto ? JSON.parse(texto) : null;
 
@@ -65,6 +91,96 @@ async function peticion(metodo, ruta, cuerpo, { autenticado = true } = {}) {
   // Desempaquetar ApiResponse estándar { success, data, message }
   const datos = (json && json.data !== undefined) ? json.data : json;
   return datos;
+}
+
+// ─── Cola Offline / Outbox Pattern para Zonas Muertas ────────
+export const ColaOffline = {
+  obtener() {
+    try {
+      const raw = localStorage.getItem(CLAVE_COLA_OFFLINE);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  guardar(cola) {
+    try {
+      localStorage.setItem(CLAVE_COLA_OFFLINE, JSON.stringify(cola));
+    } catch {}
+  },
+
+  encolarAlarma(camaId) {
+    const cola = this.obtener();
+    const item = {
+      idTemporal: `off-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      camaId,
+      timestamp: new Date().toISOString(),
+      intentos: 0,
+    };
+    cola.push(item);
+    this.guardar(cola);
+    this.iniciarReintentos();
+    window.dispatchEvent(new CustomEvent("codigo_azul:cola_actualizada", { detail: { cantidad: cola.length } }));
+    return item;
+  },
+
+  eliminar(idTemporal) {
+    let cola = this.obtener();
+    cola = cola.filter((it) => it.idTemporal !== idTemporal);
+    this.guardar(cola);
+    window.dispatchEvent(new CustomEvent("codigo_azul:cola_actualizada", { detail: { cantidad: cola.length } }));
+  },
+
+  async procesar() {
+    const cola = this.obtener();
+    if (cola.length === 0) return;
+
+    for (const item of [...cola]) {
+      try {
+        item.intentos = (item.intentos || 0) + 1;
+        const res = await peticion("POST", "/incidentes/activar", { camaId: item.camaId });
+        this.eliminar(item.idTemporal);
+        window.dispatchEvent(new CustomEvent("codigo_azul:alerta_despachada_offline", { detail: res }));
+      } catch (err) {
+        // Si no hay red o timeout, continuar en la cola
+        if (err.estado === 0) break;
+        // Si el servidor responde 409 (ya estaba activa por idempotencia), se considera exitosa
+        if (err.estado === 409 || err.estado === 200) {
+          this.eliminar(item.idTemporal);
+        }
+      }
+    }
+  },
+
+  iniciarReintentos() {
+    if (workerReintentoActivo) return;
+    workerReintentoActivo = true;
+
+    const tick = async () => {
+      const cola = this.obtener();
+      if (cola.length === 0) {
+        workerReintentoActivo = false;
+        return;
+      }
+      await this.procesar();
+      if (this.obtener().length > 0) {
+        setTimeout(tick, 3000);
+      } else {
+        workerReintentoActivo = false;
+      }
+    };
+
+    setTimeout(tick, 1000);
+  },
+};
+
+// Escuchar evento online del navegador para vaciar la cola inmediatamente
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    console.log("[OFFLINE] Conectividad recuperada. Vaciando cola de emergencias...");
+    ColaOffline.procesar();
+  });
 }
 
 export const Api = {
@@ -95,8 +211,26 @@ export const Api = {
     return transformarAUbicacionesJerarquicas(flatList);
   },
 
+  /**
+   * Disparo de emergencia con tolerancia a fallos offline.
+   * Si no hay conexión Wi-Fi, encola la alarma localmente y reintenta con backoff.
+   */
   async activarIncidente(camaId) {
-    return peticion("POST", "/incidentes/activar", { camaId });
+    try {
+      return await peticion("POST", "/incidentes/activar", { camaId });
+    } catch (err) {
+      if (err.estado === 0) {
+        // Falla de red: encolar y asegurar que el despacho ocurra en cuanto haya señal
+        const itemOffline = ColaOffline.encolarAlarma(camaId);
+        return {
+          id: itemOffline.idTemporal,
+          estado: "PENDIENTE_OFFLINE",
+          esOffline: true,
+          mensaje: "Alarma registrada en cola local. Despachando automáticamente al conectar...",
+        };
+      }
+      throw err;
+    }
   },
 
   async confirmarAsistencia(incidenteId) {
@@ -116,5 +250,7 @@ export const Api = {
     return peticion("DELETE", "/fcm/token", { token });
   },
 
+  ColaOffline,
   ErrorApi,
 };
+

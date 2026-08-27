@@ -63,19 +63,41 @@ export async function montarIncidenteRecibido(contenedor, params, signal) {
     ]);
 
     const u = incidente.ubicacion;
+    const edNombre = typeof u?.edificio === 'object' ? u?.edificio?.nombre : (u?.edificio || '—');
+    const piNombre = typeof u?.piso === 'object' ? u?.piso?.nombre : (u?.piso !== undefined ? `Piso ${u.piso}` : '—');
+    const saNombre = typeof u?.sala === 'object' ? u?.sala?.nombre : (u?.sectorSala || u?.sector_sala || '—');
+    const caNombre = typeof u?.cama === 'object' ? u?.cama?.nombre : (u?.cama || '—');
+    const tieneCarro = u?.tieneCarroParo ?? u?.tiene_carro_paro ?? false;
+
     const ubi = h("div", { className: "ubicacion" }, u ? [
-      filaUbi("Edificio", u.edificio.nombre),
-      filaUbi("Piso", u.piso.nombre),
-      filaUbi("Sala", u.sala.nombre),
+      filaUbi("Edificio", edNombre),
+      filaUbi("Piso", piNombre),
+      filaUbi("Sala", saNombre),
       h("div", { className: "fila" }, [
         h("span", { className: "clave", text: "Cama" }),
-        h("span", { className: "valor cama", text: u.cama.nombre }),
+        h("span", { className: "valor cama", text: caNombre }),
       ]),
+      h("div", {
+        className: `fila badge-carro-movil ${tieneCarro ? "carro-ok" : "carro-falta"}`,
+        style: {
+          marginTop: "8px",
+          padding: "8px 10px",
+          borderRadius: "8px",
+          fontSize: "0.85rem",
+          background: tieneCarro ? "rgba(34, 197, 94, 0.2)" : "rgba(239, 68, 68, 0.25)",
+          border: tieneCarro ? "1px solid rgba(34, 197, 94, 0.5)" : "1px solid rgba(239, 68, 68, 0.6)",
+          color: tieneCarro ? "#86efac" : "#fca5a5",
+          fontWeight: "600",
+        },
+        text: tieneCarro
+          ? "🟢 Carro de Paro / AED disponible en sala"
+          : "⚠️ Sala SIN Carro de Paro — LLEVAR DEA MÓVIL",
+      }),
     ] : [h("div", { className: "fila" }, [h("span", { className: "valor", text: "Cargando ubicación…" })])]);
 
     const meta = h("div", { className: "meta" }, [
-      h("span", { text: incidente.disparadoPor ? `Disparó: ${incidente.disparadoPor.nombre}` : "" }),
-      h("span", { text: `Hora: ${formatearHora(incidente.creadoEn)}` }),
+      h("span", { text: incidente.disparadoPor ? `Disparó: ${incidente.disparadoPor.nombre || incidente.disparadoPor}` : (incidente.activadoPor?.nombre ? `Disparó: ${incidente.activadoPor.nombre}` : "") }),
+      h("span", { text: `Hora: ${formatearHora(incidente.creadoEn || incidente.createdAt)}` }),
     ]);
 
     const yaHizoAck = incidente.acks?.some((a) => a.usuarioId && a.usuarioId === (window.__USUARIO_ID__ || null));

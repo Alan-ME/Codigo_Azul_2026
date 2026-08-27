@@ -19,6 +19,9 @@ function normalizar(raw) {
     ubicacion: d.ubicacion || null,
     activadoPor: d.activadoPor ?? d.activado_por ?? null,
     reanimador: d.reanimador ?? null,
+    resultadoClinico: d.resultadoClinico ?? d.resultado_clinico ?? null,
+    resultadoClinicoDescripcion: d.resultadoClinicoDescripcion ?? null,
+    observaciones: d.observaciones ?? null,
     createdAt: d.createdAt ?? d.created_at ?? d.timestamp ?? new Date().toISOString(),
     latenciaSegundos: d.latenciaRespuestaSegundos ?? d.latenciaSegundos ?? null,
     motivoCancelacion: d.motivoCancelacion ?? d.motivo_cancelacion ?? null,
@@ -71,15 +74,32 @@ export function IncidentesProvider({ children }) {
       // Desmontar la tarjeta luego de un breve pulso visual.
       setTimeout(() => remove(inc.id), 4000);
     };
+    const onResuelto = (payload) => {
+      const inc = normalizar(payload);
+      if (!inc) return;
+      upsert({ ...inc, estado: 'RESUELTO' });
+      // Desmontar la tarjeta luego de un breve pulso visual.
+      setTimeout(() => remove(inc.id), 4000);
+    };
 
     socket.on('codigo_azul_alerta', onAlerta);
+    socket.on('incidente:nuevo', onAlerta);
     socket.on('codigo_azul_atendido', onAtendido);
+    socket.on('incidente:actualizado', onAtendido);
     socket.on('codigo_azul_cancelado', onCancelado);
+    socket.on('incidente:cancelado', onCancelado);
+    socket.on('codigo_azul_resuelto', onResuelto);
+    socket.on('incidente:resuelto', onResuelto);
 
     return () => {
       socket.off('codigo_azul_alerta', onAlerta);
+      socket.off('incidente:nuevo', onAlerta);
       socket.off('codigo_azul_atendido', onAtendido);
+      socket.off('incidente:actualizado', onAtendido);
       socket.off('codigo_azul_cancelado', onCancelado);
+      socket.off('incidente:cancelado', onCancelado);
+      socket.off('codigo_azul_resuelto', onResuelto);
+      socket.off('incidente:resuelto', onResuelto);
     };
   }, [socket, upsert, remove]);
 
@@ -96,6 +116,10 @@ export function IncidentesProvider({ children }) {
 
   const confirmarAck = useCallback((id) => incidentesService.confirmarAck(id), []);
   const cancelar = useCallback((id, motivo) => incidentesService.cancelar(id, motivo), []);
+  const resolver = useCallback((id, resultadoClinico, observaciones) =>
+    incidentesService.resolver(id, resultadoClinico, observaciones), []);
+  const registrarEventoClinico = useCallback((id, tipoEvento, detalle) =>
+    incidentesService.registrarEventoClinico(id, tipoEvento, detalle), []);
 
   const value = useMemo(
     () => ({
@@ -103,8 +127,10 @@ export function IncidentesProvider({ children }) {
       conectado: connected,
       confirmarAck,
       cancelar,
+      resolver,
+      registrarEventoClinico,
     }),
-    [incidentes, connected, confirmarAck, cancelar],
+    [incidentes, connected, confirmarAck, cancelar, resolver, registrarEventoClinico],
   );
 
   return <IncidentesContext.Provider value={value}>{children}</IncidentesContext.Provider>;
@@ -115,3 +141,4 @@ export function useIncidentes() {
   if (!ctx) throw new Error('useIncidentes debe usarse dentro de <IncidentesProvider>.');
   return ctx;
 }
+
