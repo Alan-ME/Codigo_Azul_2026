@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
-// codigo-azul-web/src/services/soundService.js
-// Sirena Web Audio API con control de silencio y reactivación.
+// client/src/services/soundService.js
+// Sirena Web Audio API con control de silencio, WakeLock y vibración háptica.
 // ─────────────────────────────────────────────────────────────
 
 let audioCtx = null;
@@ -8,6 +8,7 @@ let oscillator = null;
 let gainNode = null;
 let modulationTimer = null;
 let estaSilenciado = false;
+let wakeLockSentinel = null;
 
 function ensureContext() {
   if (audioCtx) return audioCtx;
@@ -17,6 +18,21 @@ function ensureContext() {
   }
   audioCtx = new AudioContextCtor();
   return audioCtx;
+}
+
+// Auto-desbloquear AudioContext en la primera interacción del usuario en la pantalla
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    try {
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    } catch {}
+    window.removeEventListener('click', unlockAudio);
+    window.removeEventListener('touchstart', unlockAudio);
+  };
+  window.addEventListener('click', unlockAudio, { once: true });
+  window.addEventListener('touchstart', unlockAudio, { once: true });
 }
 
 export const soundService = {
@@ -53,6 +69,18 @@ export const soundService = {
         oscillator.frequency.setValueAtTime(alta ? 660 : 880, audioCtx.currentTime);
         alta = !alta;
       }, 380);
+
+      // Activar WakeLock para mantener la pantalla encendida durante la emergencia
+      if ('wakeLock' in navigator) {
+        navigator.wakeLock.request('screen').then((lock) => {
+          wakeLockSentinel = lock;
+        }).catch(() => {});
+      }
+
+      // Vibración háptica de emergencia en celulares
+      if ('vibrate' in navigator) {
+        navigator.vibrate([400, 200, 400, 200, 600]);
+      }
     } catch {
       // AudioContext bloqueado hasta interacción de usuario
     }
@@ -66,23 +94,30 @@ export const soundService = {
     if (oscillator) {
       try {
         oscillator.stop();
-      } catch {
-        // Ignorar
-      }
+      } catch {}
       try {
         oscillator.disconnect();
-      } catch {
-        // Ignorar
-      }
+      } catch {}
       oscillator = null;
     }
     if (gainNode) {
       try {
         gainNode.disconnect();
-      } catch {
-        // Ignorar
-      }
+      } catch {}
       gainNode = null;
+    }
+
+    // Liberar WakeLock de pantalla
+    if (wakeLockSentinel) {
+      try {
+        wakeLockSentinel.release();
+      } catch {}
+      wakeLockSentinel = null;
+    }
+
+    // Detener vibración
+    if ('vibrate' in navigator) {
+      navigator.vibrate(0);
     }
   },
 

@@ -1,10 +1,8 @@
 // ─────────────────────────────────────────────────────────────
-// codigo-azul-web/src/services/pdfService.js
+// client/src/services/pdfService.js
 // Servicio de generación y exportación oficial de reportes PDF.
-// Utiliza jsPDF conservando exactamente el membrete y layout de App.pdf.
+// Utiliza carga dinámica (dynamic import) de jsPDF para optimizar el bundle.
 // ─────────────────────────────────────────────────────────────
-
-import { jsPDF } from 'jspdf';
 
 const MARGEN_MM = 12;
 const ALTO_FILA_MM = 6;
@@ -133,10 +131,11 @@ function dibujarPies(doc, anchoPag, altoPag) {
 }
 
 /**
- * Genera y dispara la descarga de un PDF oficial institucional.
+ * Genera y dispara la descarga de un PDF oficial institucional con carga diferida.
  */
-export function descargarTablaPDF({ titulo, nombreArchivo = 'reporte.pdf', filtros, kpis, columnas, filas }) {
+export async function descargarTablaPDF({ titulo, nombreArchivo = 'reporte.pdf', filtros, kpis, columnas, filas }) {
   try {
+    const { jsPDF } = await import('jspdf');
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const anchoPag = doc.internal.pageSize.getWidth();
     const altoPag = doc.internal.pageSize.getHeight();

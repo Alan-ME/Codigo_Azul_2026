@@ -1,7 +1,6 @@
 // ─────────────────────────────────────────────────────────────
-// codigo-azul-web/src/data/mockData.js
-// Base de datos Mock para funcionamiento Offline / Demostración.
-// Idéntico al dataset de la suite hospitalaria.
+// client/src/data/mockData.js
+// Catálogo de datos clínicos y utilitarios de persistencia local.
 // ─────────────────────────────────────────────────────────────
 
 export function paletaAvatar(str = '') {
@@ -55,7 +54,7 @@ export const initialPacientes = [
   { id:'p4',  nombre:'Carlos',    apellido:'Fernández',  dni:'22.998.554', fechaNac:'1963-02-19', edad:62, sexo:'M', obraSocial:'IOSEP',     grupo:'A-',  alergias:[],             patologias:['EPOC','Cardiopatía isquémica'], medicacion:['Salbutamol','AAS 100'], telefono:'+54 381 4009-887', direccion:'Rivadavia 1010', contactoEmerg:'Marta Fernández (hija) — 381 4551-990', areaId:'a7', habitacion:'CAR-04', cama:'A', enfermeroId:'u3', estado:'internado' },
   { id:'p5',  nombre:'Lucía',     apellido:'Martínez',   dni:'38.001.665', fechaNac:'1994-07-25', edad:31, sexo:'F', obraSocial:'PAMI',      grupo:'AB+', alergias:[],             patologias:[], medicacion:[], telefono:'+54 381 4778-201', direccion:'9 de Julio 340', contactoEmerg:'Carla Martínez (hermana) — 381 4661-770', areaId:'a5', habitacion:'CIR-207', cama:'B', enfermeroId:'u4', estado:'observacion' },
   { id:'p6',  nombre:'Roberto',   apellido:'López',      dni:'18.556.230', fechaNac:'1955-09-14', edad:70, sexo:'M', obraSocial:'PAMI',      grupo:'O-',  alergias:['Sulfamidas'], patologias:['Insuficiencia renal crónica','Diabetes'], medicacion:['Insulina','Furosemida'], telefono:'+54 381 4110-338', direccion:'Alberdi 552', contactoEmerg:'Elba López (esposa) — 381 4223-441', areaId:'a2', habitacion:'204', cama:'A', enfermeroId:'u4', estado:'internado' },
-  { id:'p7',  nombre:'Emilia',    apellido:'Torres',     dni:'46.887.001', fechaNac:'2015-03-04', edad:10, sexo:'F', obraSocial:'Swiss Medical', grupo:'A+', alergias:['Nueces'], patologias:['Asma'], medicacion:['Salbutamol'], telefono:'+54 381 3778-990', direccion:'Marco Avellaneda 25', contactoEmerg:'Carolina Torres (madre) — 381 4443-556', areaId:'a3', habitacion:'PED-11', cama:'A', enfermeroId:'u5', estado:'internado' },
+  { id:'p7',  nombre:'Emilia',    apellido:'Torres',     dni:'46.887.001', fechaNac:'2015-03-04', edad:10, sexo:'F', obraSocial:'Swiss Medical', grupo:'A+', alergias:['Nueces'], patologias:['Asma'], medicacion:['Salbutamol'], telefono:'+54 381 4443-556', direccion:'Marco Avellaneda 25', contactoEmerg:'Carolina Torres (madre) — 381 4443-556', areaId:'a3', habitacion:'PED-11', cama:'A', enfermeroId:'u5', estado:'internado' },
   { id:'p8',  nombre:'Diego',     apellido:'Sánchez',    dni:'30.221.008', fechaNac:'1980-12-01', edad:44, sexo:'M', obraSocial:'OSDE',      grupo:'B-',  alergias:[],             patologias:['Fractura de fémur'], medicacion:['Ibuprofeno','Enoxaparina'], telefono:'+54 381 4665-118', direccion:'Belgrano 780', contactoEmerg:'Vanesa Sánchez (esposa) — 381 4771-002', areaId:'a5', habitacion:'CIR-210', cama:'A', enfermeroId:'u4', estado:'internado' },
   { id:'p9',  nombre:'Ana',       apellido:'Ramírez',    dni:'27.554.909', fechaNac:'1978-05-16', edad:47, sexo:'F', obraSocial:'PAMI',      grupo:'O+',  alergias:[],             patologias:['Neumonía'], medicacion:['Ceftriaxona','Paracetamol'], telefono:'+54 381 4996-887', direccion:'Congreso 234', contactoEmerg:'Julio Ramírez (esposo) — 381 4001-227', areaId:'a2', habitacion:'207', cama:'C', enfermeroId:'u4', estado:'internado' },
   { id:'p10', nombre:'Miguel',    apellido:'Flores',     dni:'35.114.220', fechaNac:'1986-08-23', edad:39, sexo:'M', obraSocial:'IOSEP',     grupo:'A+',  alergias:[],             patologias:['Apendicitis aguda'], medicacion:['Metamizol','Metronidazol'], telefono:'+54 381 4442-990', direccion:'Sarmiento 998', contactoEmerg:'Rita Flores (madre) — 381 4551-118', areaId:'a5', habitacion:'CIR-201', cama:'C', enfermeroId:'u4', estado:'internado' },
@@ -141,3 +140,24 @@ export const initialNotificaciones = [
   { id:'n7', tipo:'aviso',       texto:'Habitación 204 marcada como aislamiento',       hora:fechaISO(410),leida:true },
   { id:'n8', tipo:'sistema',     texto:'Actualización de firmware programada',          hora:fechaISO(720),leida:true },
 ];
+
+// ─────────────────────────────────────────────────────────────
+// Utilidades de Persistencia en LocalStorage (Offline Resilience)
+// ─────────────────────────────────────────────────────────────
+
+export function getStored(key, defaultValue) {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const item = localStorage.getItem(`codazul_${key}`);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+export function setStored(key, value) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`codazul_${key}`, JSON.stringify(value));
+  } catch {}
+}
