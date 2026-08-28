@@ -66,6 +66,9 @@ export default function ModalCancelacion({
         style={{
           width: '100%',
           maxWidth: '460px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           background: '#0f172a',
           border: '1.5px solid rgba(239, 68, 68, 0.4)',
           borderRadius: '20px',

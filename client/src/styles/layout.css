@@ -415,7 +415,18 @@
 }
 
 @media (max-width: 640px) {
-  .main { padding: 16px; }
-  .topbar { padding: 0 12px; }
-  .main .cabecera-pagina h1 { font-size: 22px; }
+  .main { padding: 14px 12px 32px; }
+  .topbar { padding: 0 10px; gap: 8px; }
+  .topbar h2.titulo { font-size: 15px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+  .main .cabecera-pagina { gap: 10px; margin-bottom: 16px; }
+  .main .cabecera-pagina h1 { font-size: 20px; }
+  .rol-switch { padding: 4px 8px; font-size: 11px; gap: 4px; }
+  .login-tarjeta { padding: 28px 18px 24px; border-radius: 16px; }
+  .login-tarjeta .demo-fila { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 380px) {
+  .topbar h2.titulo { display: none; }
+  .main { padding: 10px 8px 24px; }
+  .rol-switch select { max-width: 110px; font-size: 11px; }
 }

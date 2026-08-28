@@ -92,30 +92,39 @@
   letter-spacing: 0.05em;
 }
 
+@media (max-width: 860px) {
+  .banner-cod-azul {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+  }
+  .banner-cod-azul .cron {
+    font-size: 22px;
+  }
+}
+
 /* Últimos llamados (panel) */
 .lista-ultimos { display: flex; flex-direction: column; gap: 8px; }
 .lista-ultimos .item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px;
+  padding: 10px 12px;
   border-radius: var(--radio);
+  background: var(--superficie-2);
+  border: 1px solid var(--borde);
+  font-size: 13.5px;
   transition: background var(--dur-rapida);
-  cursor: pointer;
 }
-.lista-ultimos .item:hover { background: var(--superficie-2); }
-.lista-ultimos .avatar { width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; }
-.lista-ultimos .datos { flex: 1; min-width: 0; }
-.lista-ultimos .datos .nom { font-weight: 600; font-size: 13.5px; }
-.lista-ultimos .datos .info { font-size: 12px; color: var(--texto-tenue); }
-.lista-ultimos .hora { font-size: 12px; color: var(--texto-tenue); }
+.lista-ultimos .item:hover { background: var(--superficie); }
 
 /* ===== Tablero de llamados ===== */
 .tablero-barra {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 .tablero-barra .filtros { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -131,10 +140,29 @@
   background: var(--superficie);
 }
 
+@media (max-width: 768px) {
+  .tablero-barra {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .tablero-barra .orden {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
 .grilla-llamados {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
+}
+
+@media (max-width: 480px) {
+  .grilla-llamados {
+    grid-template-columns: 1fr;
+  }
 }
 
 .tarjeta-llamado {
@@ -188,11 +216,23 @@
 }
 .tarjeta-llamado .fila-info div { display: flex; align-items: center; gap: 6px; }
 
+@media (max-width: 360px) {
+  .tarjeta-llamado .fila-info {
+    grid-template-columns: 1fr;
+  }
+}
+
 .tarjeta-llamado .botones {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
-.tarjeta-llamado .botones .btn { flex: 1; }
+.tarjeta-llamado .botones .btn {
+  flex: 1 1 110px;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 12.5px;
+}
 
 /* ===== Ficha paciente ===== */
 .ficha-cab {
@@ -212,6 +252,19 @@
 .ficha-cab .datos-principales h2 { margin-bottom: 4px; }
 .ficha-cab .datos-principales .meta { color: var(--texto-tenue); font-size: 14px; }
 .ficha-cab .datos-principales .badges { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .ficha-cab {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+    padding: 16px;
+  }
+  .ficha-cab .datos-principales .badges {
+    justify-content: center;
+  }
+}
 
 /* ===== Cards de áreas ===== */
 .grilla-areas {
