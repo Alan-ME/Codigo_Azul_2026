@@ -4,7 +4,7 @@
 // Cachea la app web para que abra al instante aún sin conexión a internet.
 // ─────────────────────────────────────────────────────────────
 
-const CACHE_NAME = 'codigo-azul-pwa-v1';
+const CACHE_NAME = 'codigo-azul-pwa-v2';
 
 const STATIC_ASSETS = [
   '/',
@@ -42,6 +42,9 @@ self.addEventListener('activate', (event) => {
 
 // Fetch: Estrategia Stale-While-Revalidate para recursos estáticos y Network-First para APIs
 self.addEventListener('fetch', (event) => {
+  // Ignorar métodos no GET
+  if (event.request.method !== 'GET') return;
+
   const url = new URL(event.request.url);
 
   // No interceptar peticiones a la API ni WebSockets
@@ -54,26 +57,37 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request).catch(async () => {
         const cache = await caches.open(CACHE_NAME);
-        return (await cache.match('/index.html')) || (await cache.match('/'));
+        return (await cache.match('/index.html')) || (await cache.match('/')) || new Response('Offline', { status: 503 });
       })
     );
     return;
   }
 
-  // Recursos estáticos (JS, CSS, Fuentes, Imágenes)
+  // Recursos estáticos
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return networkResponse;
-      }).catch(() => cachedResponse);
+      if (cachedResponse) {
+        // En background actualizar caché si es posible
+        fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseClone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+            }
+          })
+          .catch(() => {});
+        return cachedResponse;
+      }
 
-      return cachedResponse || fetchPromise;
+      return fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => new Response('', { status: 408, statusText: 'Network Timeout' }));
     })
   );
 });

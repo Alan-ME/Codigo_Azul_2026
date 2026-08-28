@@ -27,7 +27,7 @@ if (typeof window !== 'undefined') {
       if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
       }
-    } catch {}
+    } catch { }
     window.removeEventListener('click', unlockAudio);
     window.removeEventListener('touchstart', unlockAudio);
   };
@@ -74,13 +74,15 @@ export const soundService = {
       if ('wakeLock' in navigator) {
         navigator.wakeLock.request('screen').then((lock) => {
           wakeLockSentinel = lock;
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       // Vibración háptica de emergencia en celulares
-      if ('vibrate' in navigator) {
-        navigator.vibrate([400, 200, 400, 200, 600]);
-      }
+      try {
+        if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
+          navigator.vibrate([400, 200, 400, 200, 600]);
+        }
+      } catch { }
     } catch {
       // AudioContext bloqueado hasta interacción de usuario
     }
@@ -94,16 +96,16 @@ export const soundService = {
     if (oscillator) {
       try {
         oscillator.stop();
-      } catch {}
+      } catch { }
       try {
         oscillator.disconnect();
-      } catch {}
+      } catch { }
       oscillator = null;
     }
     if (gainNode) {
       try {
         gainNode.disconnect();
-      } catch {}
+      } catch { }
       gainNode = null;
     }
 
@@ -111,14 +113,16 @@ export const soundService = {
     if (wakeLockSentinel) {
       try {
         wakeLockSentinel.release();
-      } catch {}
+      } catch { }
       wakeLockSentinel = null;
     }
 
-    // Detener vibración
-    if ('vibrate' in navigator) {
-      navigator.vibrate(0);
-    }
+    // Detener vibración de forma segura
+    try {
+      if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
+        navigator.vibrate(0);
+      }
+    } catch { }
   },
 
   silenciar() {
@@ -128,7 +132,7 @@ export const soundService = {
 
   reactivar() {
     estaSilenciado = false;
-    this.start().catch(() => {});
+    this.start().catch(() => { });
   },
 
   isSilenciado() {

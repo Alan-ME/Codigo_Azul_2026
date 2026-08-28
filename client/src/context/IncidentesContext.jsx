@@ -310,6 +310,19 @@ export function IncidentesProvider({ children }) {
     [llamadosActivos, toast],
   );
 
+  const crearLlamado = useCallback(
+    (params = {}) => {
+      const ubi = params.ubicacion || {};
+      return dispararCodigoAzul({
+        edificio: params.edificio || ubi.edificio,
+        piso: params.piso || ubi.piso,
+        sala: params.sala || ubi.sectorSala || ubi.sala,
+        cama: params.cama || ubi.cama,
+      });
+    },
+    [dispararCodigoAzul]
+  );
+
   const value = useMemo(
     () => ({
       llamadosActivos,
@@ -317,6 +330,7 @@ export function IncidentesProvider({ children }) {
       socketConectado,
       sirenaSilenciada,
       dispararCodigoAzul,
+      crearLlamado,
       silenciarSirena,
       reactivarSirena,
       alternarSilencioSirena,
@@ -330,6 +344,7 @@ export function IncidentesProvider({ children }) {
       socketConectado,
       sirenaSilenciada,
       dispararCodigoAzul,
+      crearLlamado,
       silenciarSirena,
       reactivarSirena,
       alternarSilencioSirena,

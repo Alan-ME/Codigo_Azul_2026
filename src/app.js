@@ -34,11 +34,11 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc:  ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc:    ["'self'", "https://fonts.gstatic.com", "data:"],
-        imgSrc:     ["'self'", "data:", "blob:", "https://images.unsplash.com", "https://*.unsplash.com", "https:"],
-        connectSrc: ["'self'", "ws:", "wss:", "http://localhost:*", "http://127.0.0.1:*"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc: ["'self'", "data:", "blob:", "https://images.unsplash.com", "https://*.unsplash.com", "https:"],
+        connectSrc: ["'self'", "ws:", "wss:", "https://fonts.googleapis.com", "https://fonts.gstatic.com", "https:", "http://localhost:*", "http://127.0.0.1:*"],
       },
     },
     crossOriginEmbedderPolicy: false,
@@ -70,9 +70,9 @@ app.get('/api/v1/health', async (req, res) => {
   const overall = dbStatus === 'online' ? 'online' : 'degraded';
 
   sendSuccess(res, {
-    status:    overall,
+    status: overall,
     timestamp: new Date().toISOString(),
-    version:   '1.0.0',
+    version: '1.0.0',
     services: {
       database: dbStatus,
       firebase: fcmStatus,
