@@ -13,13 +13,15 @@ const AuthContext = createContext(null);
 const ROL_MAP_BACKEND_TO_FRONT = {
   ADMINISTRADOR:     'admin',
   MEDICO_ACTIVADOR:  'enfermero',
-  REANIMADOR_MEDICO: 'enfermero',
-  OPERADOR_GUARDIA:  'admin',
+  REANIMADOR_MEDICO: 'reanimador',
+  OPERADOR_GUARDIA:  'guardia',
 };
 
 const ROL_MAP_FRONT_TO_BACKEND = {
-  admin:     'admin@hospital.gob.ar',
-  enfermero: 'medico.activador@hospital.gob.ar',
+  admin:      'admin@hospital.gob.ar',
+  enfermero:  'medico.activador@hospital.gob.ar',
+  reanimador: 'reanimador1@hospital.gob.ar',
+  guardia:    'guardia@hospital.gob.ar',
 };
 
 export function AuthProvider({ children }) {

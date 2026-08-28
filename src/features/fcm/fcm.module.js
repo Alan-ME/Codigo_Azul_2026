@@ -15,13 +15,15 @@ let initialized = false;
 export function initFCMModule() {
   if (initialized) return;
 
-  // Escuchar cuando se activa un nuevo Código Azul para disparar Push Notifications
-  appEvents.on('incidente:activado', async (payload) => {
-    try {
-      await despacharPushUseCase.execute(payload);
-    } catch (err) {
-      console.error(`[FCM] [ERROR] Error durante el despacho push del incidente: ${err.message}`);
-    }
+  // Escuchar cuando se activa un nuevo Código Azul para disparar Push Notifications en segundo plano
+  appEvents.on('incidente:activado', (payload) => {
+    setImmediate(async () => {
+      try {
+        await despacharPushUseCase.execute(payload);
+      } catch (err) {
+        console.error(`[FCM] [ERROR] Error durante el despacho push del incidente: ${err.message}`);
+      }
+    });
   });
 
   initialized = true;

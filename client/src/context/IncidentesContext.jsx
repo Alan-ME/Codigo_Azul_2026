@@ -136,24 +136,40 @@ export function IncidentesProvider({ children }) {
 
   // Disparo de Código Azul desde el Botón de Pánico
   const dispararCodigoAzul = useCallback(
-    async ({ edificio, piso, sala, cama }) => {
+    async ({ edificio, piso, sala, cama, ubicacionId }) => {
       soundService.reactivar();
       setSirenaSilenciada(false);
+
+      // Calcular o validar ubicacionId
+      let ubiId = ubicacionId;
+      if (!ubiId) {
+        const sName = (sala || '').toLowerCase();
+        const cName = (cama || '').toLowerCase();
+        if (cName.includes('02') || sName.includes('shock')) ubiId = 2;
+        else if (sName.includes('quiróf') || sName.includes('quirof')) ubiId = 3;
+        else if (sName.includes('intensiv') || sName.includes('uti') || cName.includes('uci-01')) ubiId = 4;
+        else if (cName.includes('uci-04')) ubiId = 5;
+        else if (sName.includes('coronaria') || sName.includes('uco')) ubiId = 6;
+        else if (sName.includes('neo') || cName.includes('cuna')) ubiId = 7;
+        else if (sName.includes('recuper')) ubiId = 8;
+        else ubiId = 1;
+      }
 
       const nuevo = {
         id: 'ca_' + Date.now(),
         pacienteId: initialPacientes[0]?.id || 'p1',
-        pacienteNombre: `${sala} — ${cama}`,
+        pacienteNombre: `${sala || 'Guardia'} — ${cama || 'Cama 01'}`,
         tipo: 'codigo-azul',
         origen: 'cama',
         enfermeroId: initialUsuarios[2]?.id || 'u3',
         enfermeroNombre: 'Enfermería de Guardia',
         reanimadorNombre: null,
         ubicacion: {
-          edificio: edificio || 'Edificio Central',
-          piso: piso || 'Piso 1 - Críticos',
-          sectorSala: sala || 'UTI Adultos',
-          cama: cama || 'Cama 01',
+          id: ubiId,
+          edificio: edificio || 'Monoblock Central',
+          piso: piso || 'Piso 1 - Guardia y Shockroom',
+          sectorSala: sala || 'Guardia General',
+          cama: cama || 'Shockroom-01',
         },
         horaInicio: new Date().toISOString(),
         atendido: false,
@@ -169,7 +185,7 @@ export function IncidentesProvider({ children }) {
               Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
-              ubicacionId: 1,
+              ubicacionId: ubiId,
               cama: cama || 'Cama 01',
             }),
           });
@@ -183,7 +199,7 @@ export function IncidentesProvider({ children }) {
         }
       }
 
-      setLlamadosActivos((prev) => [nuevo, ...prev]);
+      setLlamadosActivos((prev) => [nuevo, ...prev.filter((x) => x.backendId !== nuevo.backendId)]);
       toast({
         titulo: '🚨 ¡CÓDIGO AZUL DISPARADO!',
         msj: `${nuevo.ubicacion.sectorSala} · ${nuevo.ubicacion.cama}`,

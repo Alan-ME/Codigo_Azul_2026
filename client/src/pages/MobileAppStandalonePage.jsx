@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useIncidentes } from '../context/IncidentesContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { soundService } from '../services/soundService.js';
 import Icono from '../components/common/Icono.jsx';
@@ -17,13 +18,13 @@ import ReanimadorEsperaScreen from '../components/mobile/screens/ReanimadorEsper
 const CATALOGO_UBICACIONES = [
   {
     id: 'ed-central',
-    nombre: 'Edificio Central',
+    nombre: 'Monoblock Central',
     pisos: [
       {
         id: 'piso-1',
         nombre: 'Piso 1 - Guardia y Shockroom',
         salas: [
-          { id: 'sala-shock', nombre: 'Shockroom', camas: ['Cama 01', 'Cama 02', 'Cama 03', 'Cama 04'] },
+          { id: 'sala-shock', nombre: 'Guardia General', camas: ['Shockroom-01', 'Shockroom-02', 'Cama 01', 'Cama 02'] },
           { id: 'sala-obs', nombre: 'Observación', camas: ['Cama 01', 'Cama 02', 'Cama 03', 'Cama 04', 'Cama 05', 'Cama 06'] },
         ],
       },
@@ -31,8 +32,8 @@ const CATALOGO_UBICACIONES = [
         id: 'piso-2',
         nombre: 'Piso 2 - Cuidados Críticos',
         salas: [
-          { id: 'sala-uti', nombre: 'Terapia Intensiva (UTI)', camas: ['Cama 01', 'Cama 02', 'Cama 03', 'Cama 04', 'Cama 05', 'Cama 06', 'Cama 07', 'Cama 08'] },
-          { id: 'sala-uco', nombre: 'Unidad Coronaria (UCO)', camas: ['Cama 01', 'Cama 02', 'Cama 03', 'Cama 04'] },
+          { id: 'sala-uti', nombre: 'Unidad de Cuidados Intensivos', camas: ['UCI-01', 'UCI-04', 'Cama 01', 'Cama 02'] },
+          { id: 'sala-uco', nombre: 'Unidad Coronaria (UCO)', camas: ['UCO-02', 'Cama 01', 'Cama 02'] },
         ],
       },
     ],
@@ -45,7 +46,7 @@ const CATALOGO_UBICACIONES = [
         id: 'piso-mat',
         nombre: 'Piso 1 - Maternidad y Neo',
         salas: [
-          { id: 'sala-neo', nombre: 'Neonatología', camas: ['Incubadora 01', 'Incubadora 02', 'Incubadora 03', 'Incubadora 04'] },
+          { id: 'sala-neo', nombre: 'Neonatología', camas: ['Cuna-05', 'Incubadora 01', 'Incubadora 02'] },
           { id: 'sala-parto', nombre: 'Centro Obstétrico', camas: ['Cama 01', 'Cama 02'] },
         ],
       },
@@ -63,6 +64,7 @@ export default function MobileAppStandalonePage() {
     silenciarSirena,
     reactivarSirena,
   } = useIncidentes();
+  const { login: authLogin, logout: authLogout, isBackendOnline, token } = useAuth();
   const { toast, segundosADuracion } = useUI();
 
   const [sesion, setSesion] = useState(() => {
@@ -83,11 +85,19 @@ export default function MobileAppStandalonePage() {
   const [edificioSel, setEdificioSel] = useState(CATALOGO_UBICACIONES[0]);
   const [pisoSel, setPisoSel] = useState(CATALOGO_UBICACIONES[0].pisos[0]);
   const [salaSel, setSalaSel] = useState(CATALOGO_UBICACIONES[0].pisos[0].salas[0]);
-  const [camaSel, setCamaSel] = useState('Cama 01');
+  const [camaSel, setCamaSel] = useState('Shockroom-01');
 
   const [armando, setArmando] = useState(false);
   const [modalConfirmarAbierto, setModalConfirmarAbierto] = useState(false);
   const holdTimerRef = useRef(null);
+
+  // Auto-sincronizar JWT y WebSockets al cargar la vista móvil
+  useEffect(() => {
+    if (sesion && !token) {
+      const email = sesion.rol === 'reanimador' ? 'reanimador1@hospital.gob.ar' : 'medico.activador@hospital.gob.ar';
+      authLogin({ email, password: 'Password123!', rol: sesion.rol }).catch(() => {});
+    }
+  }, [sesion, token, authLogin]);
 
   const incidenteActivo = useMemo(() => {
     return llamadosActivos.find((l) => l.tipo === 'codigo-azul');
@@ -126,26 +136,32 @@ export default function MobileAppStandalonePage() {
     return segundosADuracion(seg);
   }, [incidenteActivo, tiempoActual, segundosADuracion]);
 
-  const handleLogin = (u, p) => {
-    const uVal = u || usuarioInput;
-    const pVal = p || passwordInput;
-    if (uVal.toLowerCase() === 'enfermero' || uVal.toLowerCase() === 'enfermera') {
-      const data = { nombre: 'Camila Herrera', rol: 'enfermero', matricula: 'ENF-4482' };
-      setSesion(data);
-      localStorage.setItem('codazul_movil_sesion', JSON.stringify(data));
-      setPantalla('panico');
-    } else if (uVal.toLowerCase() === 'reanimador' || uVal.toLowerCase() === 'medico') {
-      const data = { nombre: 'Dr. Reanimador', rol: 'reanimador', matricula: 'MED-9081' };
-      setSesion(data);
-      localStorage.setItem('codazul_movil_sesion', JSON.stringify(data));
-      setPantalla('reanimador');
+  const handleLogin = async (u, p) => {
+    const uVal = (u || usuarioInput).toLowerCase();
+    const rol = (uVal === 'reanimador' || uVal === 'medico') ? 'reanimador' : 'enfermero';
+
+    try {
+      const email = rol === 'reanimador' ? 'reanimador1@hospital.gob.ar' : 'medico.activador@hospital.gob.ar';
+      await authLogin({ email, password: 'Password123!', rol });
+    } catch (err) {
+      console.warn('[MOBILE] Login con backend:', err.message);
+    }
+
+    const data = {
+      nombre: rol === 'enfermero' ? 'Camila Herrera (Enfermería)' : 'Dr. Ivan Cardozo (Reanimador)',
+      rol,
+      matricula: rol === 'enfermero' ? 'ENF-4482' : 'MED-9081',
+    };
+    setSesion(data);
+    localStorage.setItem('codazul_movil_sesion', JSON.stringify(data));
+    setPantalla(rol === 'enfermero' ? 'panico' : 'reanimador');
+    if (rol === 'reanimador') {
       soundService.prime();
-    } else {
-      setErrorLogin('Credenciales inválidas. Usa los accesos rápidos demo.');
     }
   };
 
   const handleCerrarSesion = () => {
+    authLogout();
     setSesion(null);
     localStorage.removeItem('codazul_movil_sesion');
     soundService.stop();
@@ -169,11 +185,25 @@ export default function MobileAppStandalonePage() {
   };
 
   const handleDispararEmergencia = () => {
+    // Resolver ubicacionId según la selección
+    let ubiId = 1;
+    const sName = (salaSel?.nombre || '').toLowerCase();
+    const cName = (camaSel || '').toLowerCase();
+    if (cName.includes('02') || sName.includes('shock')) ubiId = 2;
+    else if (sName.includes('quiróf') || sName.includes('quirof')) ubiId = 3;
+    else if (sName.includes('intensiv') || sName.includes('uti') || cName.includes('uci-01')) ubiId = 4;
+    else if (cName.includes('uci-04')) ubiId = 5;
+    else if (sName.includes('coronaria') || sName.includes('uco')) ubiId = 6;
+    else if (sName.includes('neo') || cName.includes('cuna')) ubiId = 7;
+    else if (sName.includes('recuper')) ubiId = 8;
+
     crearLlamado({
       tipo: 'codigo-azul',
       origen: 'cama',
       pacienteId: 'p2',
+      ubicacionId: ubiId,
       ubicacion: {
+        id: ubiId,
         edificio: edificioSel.nombre,
         piso: pisoSel.nombre,
         sectorSala: salaSel.nombre,
