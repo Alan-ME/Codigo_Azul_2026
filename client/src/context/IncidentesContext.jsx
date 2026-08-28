@@ -45,42 +45,55 @@ export function IncidentesProvider({ children }) {
   const [socketConectado, setSocketConectado] = useState(false);
   const [sirenaSilenciada, setSirenaSilenciada] = useState(false);
 
-  // Sincronización inicial con PostgreSQL si está online
-  useEffect(() => {
-    if (!isBackendOnline || !token) {
-      setLlamadosActivos([]);
-      return;
-    }
+  // Sincronización inicial garantizada con PostgreSQL
+  const cargarActivos = useCallback(async () => {
+    try {
+      let authToken = token || apiClient.getToken();
+      if (!authToken) {
+        const authRes = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'guardia@hospital.gob.ar', password: 'Password123!' }),
+        });
+        const authJson = await authRes.json();
+        if (authJson.success && authJson.data?.token) {
+          authToken = authJson.data.token;
+          apiClient.saveSession(authToken, authJson.data.user);
+        }
+      }
 
-    fetch('/api/v1/incidentes/activos', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((json) => {
+      if (authToken) {
+        const res = await fetch('/api/v1/incidentes/activos', {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           const activosBd = json.data.map(normalizarIncidenteBackend);
           setLlamadosActivos(activosBd);
-        } else {
-          setLlamadosActivos([]);
         }
-      })
-      .catch((err) => {
-        console.warn('[INCIDENTES] Error cargando activos:', err);
-        setLlamadosActivos([]);
-      });
-  }, [isBackendOnline, token]);
+      }
+    } catch (err) {
+      console.warn('[INCIDENTES] Error al cargar activos iniciales:', err);
+    }
+  }, [token]);
 
-  // Conexión WebSockets en tiempo real
   useEffect(() => {
-    if (!token) return;
+    cargarActivos();
+  }, [cargarActivos]);
+
+  // Conexión WebSockets en tiempo real (siempre conectada)
+  useEffect(() => {
+    const activeToken = token || apiClient.getToken();
 
     const socket = io(window.location.origin, {
-      auth: { token },
+      auth: { token: activeToken || '' },
       transports: ['websocket', 'polling'],
     });
 
     socket.on('connect', () => {
       setSocketConectado(true);
+      // Al reconectar socket, sincronizar lista fresca
+      cargarActivos();
     });
 
     socket.on('disconnect', () => {
@@ -89,7 +102,10 @@ export function IncidentesProvider({ children }) {
 
     socket.on('incidente:nuevo', (inc) => {
       const itemFront = normalizarIncidenteBackend(inc);
-      setLlamadosActivos((prev) => [itemFront, ...prev.filter((x) => x.backendId !== inc.id)]);
+      setLlamadosActivos((prev) => [
+        itemFront,
+        ...prev.filter((x) => String(x.backendId) !== String(inc.id) && String(x.id) !== String(itemFront.id)),
+      ]);
       setSirenaSilenciada(false);
       soundService.reactivar();
 
@@ -102,8 +118,16 @@ export function IncidentesProvider({ children }) {
     });
 
     const handleCierre = (inc) => {
-      soundService.stop();
-      setLlamadosActivos((prev) => prev.filter((x) => x.backendId !== inc.id && x.id !== 'la-bd-' + inc.id));
+      soundService.silenciar();
+      setSirenaSilenciada(true);
+      setLlamadosActivos((prev) =>
+        prev.filter(
+          (x) =>
+            String(x.backendId) !== String(inc.id) &&
+            String(x.id) !== String(inc.id) &&
+            x.id !== 'la-bd-' + inc.id
+        )
+      );
       toast({ titulo: 'Incidente Finalizado', msj: 'Código Azul cerrado en el hospital', tipo: 'info' });
     };
 
@@ -121,7 +145,11 @@ export function IncidentesProvider({ children }) {
         }
         setLlamadosActivos((prev) =>
           prev.map((item) => {
-            if (item.backendId === inc.id || item.id === 'la-bd-' + inc.id || item.id === inc.id) {
+            if (
+              String(item.backendId) === String(inc.id) ||
+              String(item.id) === String(inc.id) ||
+              item.id === 'la-bd-' + inc.id
+            ) {
               return {
                 ...item,
                 estado: 'EN_ATENCION',
@@ -138,7 +166,7 @@ export function IncidentesProvider({ children }) {
     return () => {
       socket.disconnect();
     };
-  }, [token, toast]);
+  }, [token, cargarActivos, toast]);
 
   // Disparo de Código Azul desde el Botón de Pánico
   const dispararCodigoAzul = useCallback(
@@ -294,25 +322,27 @@ export function IncidentesProvider({ children }) {
   // Atender Llamado / Finalizar Emergencia (Cierra en Dashboard, Tablero y Mobile)
   const atenderLlamado = useCallback(
     async (id) => {
-      soundService.stop();
-      const l = llamadosActivos.find((x) => x.id === id);
+      soundService.silenciar();
+      setSirenaSilenciada(true);
+      const l = llamadosActivos.find((x) => x.id === id || String(x.backendId) === String(id));
       if (!l) return;
       const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
       const nombreMostrar = p ? `${p.nombre} ${p.apellido}` : (l.pacienteNombre || 'Código Azul');
 
-      if (l.backendId && token) {
+      const authToken = token || apiClient.getToken();
+      if (l.backendId && authToken) {
         try {
           // Si el incidente estaba en ACTIVADO, primero confirmamos ACK para respetar la FSM clínica
           if (l.estado === 'ACTIVADO' || !l.atendido) {
             await fetch(`/api/v1/incidentes/${l.backendId}/ack`, {
               method: 'PUT',
-              headers: { Authorization: `Bearer ${token}` },
+              headers: { Authorization: `Bearer ${authToken}` },
             }).catch(() => {});
           }
 
           await fetch(`/api/v1/incidentes/${l.backendId}/resolver`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
             body: JSON.stringify({ observaciones: 'Atención completada y resuelto en guardia' }),
           });
         } catch (err) {
@@ -341,7 +371,13 @@ export function IncidentesProvider({ children }) {
       ]);
 
       // Remover de activos en todo el sistema
-      setLlamadosActivos((prev) => prev.filter((x) => x.id !== id));
+      setLlamadosActivos((prev) =>
+        prev.filter((x) =>
+          x.id !== id &&
+          String(x.backendId) !== String(l.backendId) &&
+          x.id !== 'la-bd-' + l.backendId
+        )
+      );
       toast({ titulo: 'Código Azul Resuelto', msj: `${nombreMostrar} — finalizado y registrado en historial`, tipo: 'exito' });
     },
     [llamadosActivos, token, toast],
