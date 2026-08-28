@@ -96,20 +96,28 @@ export const soundService = {
       clearInterval(modulationTimer);
       modulationTimer = null;
     }
+    if (gainNode) {
+      try {
+        if (audioCtx) {
+          gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        }
+        gainNode.disconnect();
+      } catch { }
+      gainNode = null;
+    }
     if (oscillator) {
       try {
-        oscillator.stop();
+        oscillator.stop(0);
       } catch { }
       try {
         oscillator.disconnect();
       } catch { }
       oscillator = null;
     }
-    if (gainNode) {
+    if (audioCtx && audioCtx.state === 'running') {
       try {
-        gainNode.disconnect();
+        audioCtx.suspend().catch(() => { });
       } catch { }
-      gainNode = null;
     }
 
     // Liberar WakeLock de pantalla

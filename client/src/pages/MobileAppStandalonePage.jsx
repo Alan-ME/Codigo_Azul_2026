@@ -180,6 +180,7 @@ export default function MobileAppStandalonePage() {
               onConfirmarACK={(id) => mobile.tomarLlamado(id || mobile.incidenteActivo.id)}
               onToggleSirena={mobile.sirenaSilenciada ? mobile.reactivarSirena : mobile.silenciarSirena}
               onFinalizarAtencion={(id) => mobile.atenderLlamado(id || mobile.incidenteActivo.id)}
+              puedeFinalizar={mobile.puedeFinalizar}
               segundosADuracion={mobile.segundosADuracion}
               tiempoActual={mobile.tiempoActual}
             />

@@ -22,6 +22,7 @@ export default function AlertaReanimadorScreen({
   onConfirmarACK,
   onToggleSirena,
   onFinalizarAtencion,
+  puedeFinalizar = true,
   segundosADuracion,
   tiempoActual = Date.now(),
 }) {
@@ -357,7 +358,7 @@ export default function AlertaReanimadorScreen({
             <Icono nombre="check" size={24} color="#ffffff" />
             <span>CONFIRMAR ASISTENCIA (ACK)</span>
           </button>
-        ) : (
+        ) : puedeFinalizar ? (
           <button
             type="button"
             onClick={() => onFinalizarAtencion && onFinalizarAtencion(incidenteActivo.id)}
@@ -381,6 +382,49 @@ export default function AlertaReanimadorScreen({
           >
             <span>🏁 FINALIZAR ATENCIÓN / RESOLVER</span>
           </button>
+        ) : (
+          <div style={{ display: 'grid', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => onConfirmarACK && onConfirmarACK(incidenteActivo.id)}
+              style={{
+                background: '#16a34a',
+                color: '#ffffff',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '16px',
+                height: '56px',
+                fontSize: '15px',
+                fontWeight: 900,
+                cursor: 'pointer',
+                boxShadow: '0 6px 20px rgba(22, 163, 74, 0.45)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+            >
+              <Icono nombre="check" size={20} color="#ffffff" />
+              <span>➕ SUMARME AL EQUIPO DE RCP (ACK)</span>
+            </button>
+            <button
+              type="button"
+              disabled
+              style={{
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#94a3b8',
+                borderRadius: '12px',
+                height: '42px',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                cursor: 'not-allowed',
+                opacity: 0.6,
+              }}
+              title="Solo el personal médico que confirmó asistencia o un Administrador pueden finalizar el Código Azul."
+            >
+              🔒 Finalizar (Solo participantes del equipo)
+            </button>
+          </div>
         )}
 
         <button

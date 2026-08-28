@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useIncidentes } from '../context/IncidentesContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { soundService } from '../services/soundService.js';
@@ -49,12 +50,14 @@ export const CATALOGO_UBICACIONES = [
 ];
 
 export function useMobileEmergency(rolActivo = 'enfermero') {
+  const { user } = useAuth();
   const {
     llamadosActivos,
     tomarLlamado,
     atenderLlamado,
     cancelarLlamado,
     dispararCodigoAzul,
+    puedeUsuarioFinalizarLlamado,
     sirenaSilenciada,
     silenciarSirena,
     reactivarSirena,
@@ -159,6 +162,11 @@ export function useMobileEmergency(rolActivo = 'enfermero') {
     });
   };
 
+  const puedeFinalizar = useMemo(() => {
+    if (!incidenteActivo) return false;
+    return puedeUsuarioFinalizarLlamado(incidenteActivo, user);
+  }, [incidenteActivo, puedeUsuarioFinalizarLlamado, user]);
+
   return {
     // Ubicación
     pasoSelector,
@@ -192,6 +200,8 @@ export function useMobileEmergency(rolActivo = 'enfermero') {
     cronometroTexto,
     tiempoActual,
     segundosADuracion,
+    puedeFinalizar,
+    user,
 
     // Acciones y Sirena
     sirenaSilenciada,

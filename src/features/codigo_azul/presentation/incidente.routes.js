@@ -25,7 +25,7 @@ router.get(
 // 3. Disparo prioritario de alerta Código Azul
 router.post(
   '/activar',
-  requireRole('MEDICO_ACTIVADOR', 'ADMINISTRADOR'),
+  requireRole('MEDICO_ACTIVADOR', 'REANIMADOR_MEDICO', 'OPERADOR_GUARDIA', 'ADMINISTRADOR'),
   incidenteController.activar
 );
 
