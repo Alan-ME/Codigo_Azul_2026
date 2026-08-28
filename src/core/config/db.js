@@ -8,17 +8,27 @@ import { config } from './env.js';
 
 const { Pool } = pg;
 
+const poolConfig = config.db.connectionString
+  ? {
+      connectionString: config.db.connectionString,
+      ssl: (process.env.DB_SSL === 'true' || !config.db.connectionString.includes('localhost'))
+        ? { rejectUnauthorized: false }
+        : false,
+    }
+  : {
+      host:     config.db.host,
+      port:     config.db.port,
+      database: config.db.database,
+      user:     config.db.user,
+      password: config.db.password,
+      ssl:      (process.env.DB_SSL === 'true' || config.db.host !== 'localhost')
+        ? { rejectUnauthorized: false }
+        : false,
+    };
+
 /** Pool global de conexiones. */
 const pool = new Pool({
-  host:     config.db.host,
-  port:     config.db.port,
-  database: config.db.database,
-  user:     config.db.user,
-  password: config.db.password,
-  ssl:      (process.env.DB_SSL === 'true' || config.db.host !== 'localhost')
-    ? { rejectUnauthorized: false }
-    : false,
-
+  ...poolConfig,
   // Pool tuning: conexiones suficientes para el MVP hospitalario.
   max:                20,
   idleTimeoutMillis:  30_000,
