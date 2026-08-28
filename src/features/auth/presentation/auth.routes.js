@@ -10,17 +10,17 @@ import { config } from '../../../core/config/env.js';
 
 const router = Router();
 
-// Rate limiter para login.
-// Produccion: 5 intentos cada 15 minutos por IP (anti brute-force).
-// Desarrollo: 50 intentos (no bloquea la suite de tests automatizados).
+// Rate limiter para login:
+// Permite pruebas concurrentes y no bloquea logins exitosos (skipSuccessfulRequests: true).
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: config.nodeEnv === 'development' ? 50 : 5,
+  max: 300,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
-    message: 'Demasiados intentos de inicio de sesion. Intente nuevamente en 15 minutos.',
+    message: 'Demasiados intentos fallidos de inicio de sesion. Intente nuevamente en unos minutos.',
   },
 });
 

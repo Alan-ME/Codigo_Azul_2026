@@ -9,6 +9,7 @@ let gainNode = null;
 let modulationTimer = null;
 let estaSilenciado = false;
 let wakeLockSentinel = null;
+let isVibrating = false;
 
 function ensureContext() {
   if (audioCtx) return audioCtx;
@@ -84,6 +85,7 @@ export const soundService = {
       try {
         if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
           navigator.vibrate([400, 200, 400, 200, 600]);
+          isVibrating = true;
         }
       } catch { }
     } catch {
@@ -128,12 +130,15 @@ export const soundService = {
       wakeLockSentinel = null;
     }
 
-    // Detener vibración de forma segura
-    try {
-      if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
-        navigator.vibrate(0);
-      }
-    } catch { }
+    // Detener vibración de forma segura si estuvo activa
+    if (isVibrating) {
+      try {
+        if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(0);
+        }
+      } catch { }
+      isVibrating = false;
+    }
   },
 
   silenciar() {
