@@ -48,7 +48,7 @@ export class ActivarCodigoAzulUseCase {
         usuarioId:    user.id,
         tipoEvento:   'ACTIVACION_REDUNDANTE_BLOQUEADA',
         payloadData:  {
-          motivo: 'Pulsación repetida dentro de la ventana de 60 segundos',
+          motivo: 'Pulsación repetida dentro de la ventana de idempotencia (5 segundos)',
           usuario_intento: `${user.nombre} ${user.apellido}`,
           rol_usuario: user.rol,
         },
