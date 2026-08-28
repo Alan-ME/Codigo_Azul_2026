@@ -82,12 +82,7 @@ export const initialOrigenesLlamado = [
   { id:'voz',     nombre:'Comando de voz', icono:'mic',   descripcion:'Detección por comando de voz (activo solo en UTI).' },
 ];
 
-export const initialLlamadosActivos = [
-  { id:'la1', pacienteId:'p11', tipo:'codigo-azul', origen:'cama',  enfermeroId:'u3', horaInicio:fechaISO(2),  atendido:false },
-  { id:'la2', pacienteId:'p2',  tipo:'emergencia',  origen:'cama',  enfermeroId:'u3', horaInicio:fechaISO(6),  atendido:false },
-  { id:'la3', pacienteId:'p8',  tipo:'normal',      origen:'baño',  enfermeroId:'u4', horaInicio:fechaISO(14), atendido:false },
-  { id:'la4', pacienteId:'p13', tipo:'normal',      origen:'cama',  enfermeroId:'u5', horaInicio:fechaISO(4),  atendido:false },
-];
+export const initialLlamadosActivos = [];
 
 export function generarHistoricos() {
   const arr = [];

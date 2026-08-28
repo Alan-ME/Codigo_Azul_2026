@@ -40,14 +40,17 @@ export function IncidentesProvider({ children }) {
   const { token, isBackendOnline } = useAuth();
   const { toast } = useUI();
 
-  const [llamadosActivos, setLlamadosActivos] = useState(initialLlamadosActivos);
+  const [llamadosActivos, setLlamadosActivos] = useState([]);
   const [llamadosHistoricos, setLlamadosHistoricos] = useState(initialLlamadosHistoricos);
   const [socketConectado, setSocketConectado] = useState(false);
   const [sirenaSilenciada, setSirenaSilenciada] = useState(false);
 
   // Sincronización inicial con PostgreSQL si está online
   useEffect(() => {
-    if (!isBackendOnline || !token) return;
+    if (!isBackendOnline || !token) {
+      setLlamadosActivos([]);
+      return;
+    }
 
     fetch('/api/v1/incidentes/activos', {
       headers: { Authorization: `Bearer ${token}` },
@@ -56,13 +59,15 @@ export function IncidentesProvider({ children }) {
       .then((json) => {
         if (json.success && Array.isArray(json.data)) {
           const activosBd = json.data.map(normalizarIncidenteBackend);
-          setLlamadosActivos((prev) => {
-            const mockLocales = prev.filter((x) => !x.backendId);
-            return [...activosBd, ...mockLocales];
-          });
+          setLlamadosActivos(activosBd);
+        } else {
+          setLlamadosActivos([]);
         }
       })
-      .catch((err) => console.warn('[INCIDENTES] Error cargando activos:', err));
+      .catch((err) => {
+        console.warn('[INCIDENTES] Error cargando activos:', err);
+        setLlamadosActivos([]);
+      });
   }, [isBackendOnline, token]);
 
   // Conexión WebSockets en tiempo real
@@ -276,6 +281,14 @@ export function IncidentesProvider({ children }) {
 
       if (l.backendId && token) {
         try {
+          // Si el incidente estaba en ACTIVADO, primero confirmamos ACK para respetar la FSM clínica
+          if (l.estado === 'ACTIVADO' || !l.atendido) {
+            await fetch(`/api/v1/incidentes/${l.backendId}/ack`, {
+              method: 'PUT',
+              headers: { Authorization: `Bearer ${token}` },
+            }).catch(() => {});
+          }
+
           await fetch(`/api/v1/incidentes/${l.backendId}/resolver`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
