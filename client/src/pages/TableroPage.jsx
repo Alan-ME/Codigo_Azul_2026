@@ -34,7 +34,7 @@ export default function TableroPage() {
 
   // Filtrado y Ordenamiento
   const llamadosFiltrados = useMemo(() => {
-    let list = llamadosActivos.filter((l) => !l.atendido);
+    let list = [...llamadosActivos];
 
     if (filtroTipo !== 'todos') {
       list = list.filter((l) => l.tipo === filtroTipo);
@@ -43,7 +43,7 @@ export default function TableroPage() {
     if (filtroArea !== 'todas') {
       list = list.filter((l) => {
         const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
-        return p && p.areaId === filtroArea;
+        return (p && p.areaId === filtroArea) || filtroArea === 'todas';
       });
     }
 
