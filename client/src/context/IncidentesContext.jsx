@@ -111,20 +111,21 @@ export function IncidentesProvider({ children }) {
     socket.on('incidente:resuelto', handleCierre);
 
     socket.on('incidente:actualizado', (inc) => {
-      const estadoNorm = (inc.estado || '').toUpperCase();
+      const estadoNorm = (inc.estado || '').toUpperCase().replaceAll('-', '_');
       if (estadoNorm === 'CANCELADO' || estadoNorm === 'RESUELTO') {
         handleCierre(inc);
       } else {
         if (estadoNorm === 'EN_ATENCION') {
-          soundService.stop();
+          soundService.silenciar();
+          setSirenaSilenciada(true);
         }
         setLlamadosActivos((prev) =>
           prev.map((item) => {
-            if (item.backendId === inc.id || item.id === 'la-bd-' + inc.id) {
+            if (item.backendId === inc.id || item.id === 'la-bd-' + inc.id || item.id === inc.id) {
               return {
                 ...item,
-                estado: inc.estado,
-                atendido: inc.estado === 'EN_ATENCION' || inc.estado === 'en-atencion',
+                estado: 'EN_ATENCION',
+                atendido: true,
                 reanimadorNombre: inc.reanimador?.nombre || item.reanimadorNombre || 'Dr. Reanimador',
               };
             }
@@ -258,17 +259,19 @@ export function IncidentesProvider({ children }) {
   // Tomar Llamado / Confirmar Asistencia (ACK)
   const tomarLlamado = useCallback(
     async (id) => {
-      soundService.stop();
-      const l = llamadosActivos.find((x) => x.id === id);
+      soundService.silenciar();
+      setSirenaSilenciada(true);
+      const l = llamadosActivos.find((x) => x.id === id || x.backendId === id);
       if (!l) return;
       const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
       const nombreMostrar = p ? `${p.nombre} ${p.apellido}` : (l.pacienteNombre || 'Código Azul');
 
-      if (l.backendId && token) {
+      const authToken = token || apiClient.getToken();
+      if (l.backendId && authToken) {
         try {
           await fetch(`/api/v1/incidentes/${l.backendId}/ack`, {
             method: 'PUT',
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${authToken}` },
           });
         } catch (err) {
           console.warn('Aviso backend ACK:', err);
@@ -278,7 +281,7 @@ export function IncidentesProvider({ children }) {
       // Actualizar estado reactivo inmediatamente
       setLlamadosActivos((prev) =>
         prev.map((item) =>
-          item.id === id
+          item.id === id || item.backendId === id || item.id === l.id
             ? { ...item, atendido: true, estado: 'EN_ATENCION', reanimadorNombre: 'Dr. Reanimador' }
             : item
         )
