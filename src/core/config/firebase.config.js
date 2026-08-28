@@ -33,12 +33,16 @@ if (missingVars.length > 0) {
     '[FIREBASE] [HINT]  Agregue las variables FCM_PROJECT_ID, FCM_CLIENT_EMAIL y FCM_PRIVATE_KEY al archivo .env.'
   );
 } else {
-  try {
+    const formattedPrivateKey = FCM_PRIVATE_KEY
+      .trim()
+      .replace(/^["']|["']$/g, '')
+      .replace(/\\n/g, '\n');
+
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId:   FCM_PROJECT_ID,
         clientEmail: FCM_CLIENT_EMAIL,
-        privateKey:  FCM_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        privateKey:  formattedPrivateKey,
       }),
     });
 
