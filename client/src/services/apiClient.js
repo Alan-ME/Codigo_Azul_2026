@@ -15,7 +15,9 @@ export const STORAGE_KEYS = {
 export const apiClient = {
   getToken() {
     try {
-      return sessionStorage.getItem(STORAGE_KEYS.token) || localStorage.getItem(STORAGE_KEYS.token) || null;
+      const t = sessionStorage.getItem(STORAGE_KEYS.token) || localStorage.getItem(STORAGE_KEYS.token) || null;
+      if (t && t.startsWith('mock-')) return null;
+      return t;
     } catch {
       return null;
     }
@@ -23,7 +25,7 @@ export const apiClient = {
 
   saveSession(token, user) {
     try {
-      if (token) {
+      if (token && !token.startsWith('mock-')) {
         sessionStorage.setItem(STORAGE_KEYS.token, token);
         localStorage.setItem(STORAGE_KEYS.token, token);
       }
@@ -62,6 +64,11 @@ export const apiClient = {
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
+
+    if (res.status === 401) {
+      console.warn('[API] Token inválido o expirado (401). Limpiando token obsoleto...');
+      this.clearSession();
+    }
 
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {

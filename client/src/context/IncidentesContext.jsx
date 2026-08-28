@@ -326,7 +326,48 @@ export function IncidentesProvider({ children }) {
             return itemOficial;
           } else {
             console.warn('[INCIDENTES] Rechazo en backend:', json.message);
-            if (res.status === 403) {
+            if (res.status === 401) {
+              console.warn('[INCIDENTES] Token rechazado (401). Re-autenticando automáticamente...');
+              apiClient.clearSession();
+              try {
+                const freshLogin = await fetch('/api/v1/auth/login', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: 'medico.activador@hospital.gob.ar', password: 'Password123!' }),
+                });
+                const freshJson = await freshLogin.json();
+                if (freshJson.success && freshJson.data?.token) {
+                  authToken = freshJson.data.token;
+                  apiClient.saveSession(authToken, freshJson.data.user);
+                  const retryRes = await fetch('/api/v1/incidentes/activar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                    body: JSON.stringify({ ubicacionId: ubiId, cama: cama || 'Cama 01' }),
+                  });
+                  const retryJson = await retryRes.json();
+                  if (retryJson.success && retryJson.data) {
+                    const itemOficial = normalizarIncidenteBackend(retryJson.data);
+                    setLlamadosActivos((prev) => [
+                      itemOficial,
+                      ...prev.filter(
+                        (x) =>
+                          String(x.backendId) !== String(retryJson.data.id) &&
+                          String(x.id) !== String(itemOficial.id) &&
+                          !String(x.id).startsWith('ca_')
+                      ),
+                    ]);
+                    toast({
+                      titulo: '🚨 ¡CÓDIGO AZUL DISPARADO!',
+                      msj: `${itemOficial.ubicacion.sectorSala} · ${itemOficial.ubicacion.cama} — Notificación enviada al equipo de reanimación`,
+                      tipo: 'error',
+                    });
+                    return itemOficial;
+                  }
+                }
+              } catch (retryErr) {
+                console.warn('[INCIDENTES] Error en re-autenticación tras 401:', retryErr);
+              }
+            } else if (res.status === 403) {
               toast({
                 titulo: '⛔ Permiso Denegado (403)',
                 msj: `El rol "${user?.rol || 'actual'}" no tiene autorización médico-legal para activar Código Azul.`,

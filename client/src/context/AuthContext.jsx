@@ -37,13 +37,34 @@ export function AuthProvider({ children }) {
   const [isBackendOnline, setIsBackendOnline] = useState(false);
   const [cargandoAuth, setCargandoAuth] = useState(true);
 
-  // Detectar estado del backend al montar
+  // Detectar estado del backend al montar y auto-autenticar
   useEffect(() => {
     let activo = true;
-    apiClient.detectarBackend().then((online) => {
+    apiClient.detectarBackend().then(async (online) => {
       if (activo) {
         setIsBackendOnline(online);
         setCargandoAuth(false);
+        if (online) {
+          const tokenActual = apiClient.getToken();
+          if (!tokenActual || tokenActual.startsWith('mock-')) {
+            const rolActual = sesion?.rol || 'enfermero';
+            const emailDemo = ROL_MAP_FRONT_TO_BACKEND[rolActual] || 'medico.activador@hospital.gob.ar';
+            try {
+              const resLogin = await apiClient.auth.login(emailDemo, 'Password123!');
+              const bu = resLogin.data.user;
+              apiClient.saveSession(resLogin.data.token, bu);
+              setSesion({
+                token: resLogin.data.token,
+                usuarioId: bu.id,
+                rol: rolActual,
+                backendUser: bu,
+                mode: 'online',
+              });
+            } catch (err) {
+              console.warn('[AUTH] Aviso en auto-login inicial:', err.message);
+            }
+          }
+        }
       }
     });
     return () => { activo = false; };
