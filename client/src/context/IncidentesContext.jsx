@@ -9,6 +9,7 @@ import { useAuth } from './AuthContext.jsx';
 import { useUI } from './UIContext.jsx';
 import { initialLlamadosActivos, initialLlamadosHistoricos, initialPacientes, initialUsuarios } from '../data/mockData.js';
 import { soundService } from '../services/soundService.js';
+import apiClient from '../services/apiClient.js';
 import { io } from 'socket.io-client';
 
 const IncidentesContext = createContext(null);
