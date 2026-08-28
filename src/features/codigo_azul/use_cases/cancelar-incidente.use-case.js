@@ -59,17 +59,18 @@ export class CancelarIncidenteUseCase {
 
     const esAdmin = user.rol === 'ADMINISTRADOR';
     const esGuardia = user.rol === 'OPERADOR_GUARDIA';
-    const esElActivador = user.id === incidente.activador_id;
+    const esReanimador = user.rol === 'REANIMADOR_MEDICO';
+    const esElActivador = Number(user.id) === Number(incidente.activador_id || incidente.activado_por_id);
+    const esElReanimador = Number(user.id) === Number(incidente.reanimador_id);
 
-    if (!esAdmin && !esGuardia) {
-      if (esElActivador && segundosTranscurridos > 60) {
-        throw ApiError.forbidden(
-          `La cancelación directa por el activador solo está permitida dentro de los primeros 60 segundos (han transcurrido ${Math.round(segundosTranscurridos)}s). El cierre debe ser gestionado por el Operador de Guardia o Administrador.`
-        );
-      }
-      if (!esElActivador) {
-        throw ApiError.forbidden('No tiene permisos para cancelar este incidente.');
-      }
+    if (!esAdmin && !esGuardia && !esReanimador && !esElActivador && !esElReanimador) {
+      throw ApiError.forbidden('No tiene permisos para cancelar este incidente.');
+    }
+
+    if (esElActivador && !esAdmin && !esGuardia && !esReanimador && segundosTranscurridos > 60) {
+      throw ApiError.forbidden(
+        `La cancelación directa por el activador solo está permitida dentro de los primeros 60 segundos (han transcurrido ${Math.round(segundosTranscurridos)}s). El cierre debe ser gestionado por el Operador de Guardia o Administrador.`
+      );
     }
 
     // 5. Transacción ACID: UPDATE + AUDITORÍA

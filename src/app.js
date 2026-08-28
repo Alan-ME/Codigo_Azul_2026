@@ -87,8 +87,22 @@ app.use('/api/v1/fcm', fcmRoutes);
 
 // -- Servir Frontend React (codigo-azul-web/dist) ─────────────
 if (fs.existsSync(REACT_DIST_DIR)) {
-  app.use(express.static(REACT_DIST_DIR));
-  app.use('/app', express.static(REACT_DIST_DIR));
+  const staticOptions = {
+    setHeaders: (res, filePath) => {
+      // index.html y sw.js nunca deben cachearse en HTTP estático para evitar servir hashes obsoletos
+      if (filePath.endsWith('index.html') || filePath.endsWith('sw.js') || filePath.endsWith('manifest.json')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      } else if (filePath.includes('/assets/') || filePath.includes('\\assets\\')) {
+        // Los assets con hash único pueden cachearse de forma inmutable
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+    },
+  };
+
+  app.use(express.static(REACT_DIST_DIR, staticOptions));
+  app.use('/app', express.static(REACT_DIST_DIR, staticOptions));
 
   // Fallback SPA para todas las rutas no-API hacia index.html de React
   app.use((req, res, next) => {
@@ -96,6 +110,9 @@ if (fs.existsSync(REACT_DIST_DIR)) {
       if (req.path.includes('.') && !req.path.endsWith('.html')) {
         return res.status(404).send('Asset no encontrado');
       }
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       return res.sendFile(join(REACT_DIST_DIR, 'index.html'));
     }
     next();

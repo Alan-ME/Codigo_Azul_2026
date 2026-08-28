@@ -75,15 +75,26 @@ function verificarOIniciarPostgres() {
   }
 }
 
-// 2. Ejecutar Migraciones y Seeds si es necesario
+// 2. Ejecutar Migraciones, Seeds y verificar Frontend
 function prepararBaseDeDatos() {
-  console.log('[2/3] Verificando esquema y datos iniciales en PostgreSQL...');
+  console.log('[2/3] Verificando esquema, datos iniciales y frontend...');
   try {
     execSync('node scripts/migrate.js', { stdio: 'inherit' });
     execSync('node scripts/seed.js', { stdio: 'inherit' });
     console.log('      Base de datos lista con usuarios y ubicaciones.');
   } catch (err) {
     console.warn('      Aviso en migración/seed:', err.message);
+  }
+
+  const distPath = 'client/dist';
+  if (!existsSync(distPath)) {
+    console.log('      Compilando frontend React...');
+    try {
+      execSync('npm run build:web', { stdio: 'inherit' });
+      console.log('      Frontend compilado con éxito.');
+    } catch (err) {
+      console.warn('      Aviso al compilar frontend:', err.message);
+    }
   }
 }
 
@@ -96,12 +107,26 @@ function arrancarServidor() {
     shell: false,
   });
 
+  const cleanup = () => {
+    try {
+      if (serverProcess && !serverProcess.killed) {
+        serverProcess.kill('SIGKILL');
+      }
+    } catch (_) {}
+    process.exit(0);
+  };
+
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+  process.on('exit', cleanup);
+
   serverProcess.on('error', (err) => {
     console.error('Error al iniciar el servidor:', err);
   });
 
   serverProcess.on('exit', (code) => {
     console.log(`Servidor finalizado con código: ${code}`);
+    process.exit(code || 0);
   });
 }
 

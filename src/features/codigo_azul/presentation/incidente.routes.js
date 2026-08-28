@@ -29,24 +29,24 @@ router.post(
   incidenteController.activar
 );
 
-// 4. Confirmación de asistencia (ACK) por equipo de reanimación
+// 4. Confirmación de asistencia (ACK) por equipo de reanimación, enfermería o central de guardia
 router.put(
   '/:id/ack',
-  requireRole('REANIMADOR_MEDICO', 'ADMINISTRADOR'),
+  requireRole('MEDICO_ACTIVADOR', 'REANIMADOR_MEDICO', 'OPERADOR_GUARDIA', 'ADMINISTRADOR'),
   incidenteController.confirmarAck
 );
 
 // 5. Cancelación de falsa alarma o resolución previa
 router.post(
   '/:id/cancelar',
-  requireRole('MEDICO_ACTIVADOR', 'OPERADOR_GUARDIA', 'ADMINISTRADOR'),
+  requireRole('MEDICO_ACTIVADOR', 'REANIMADOR_MEDICO', 'OPERADOR_GUARDIA', 'ADMINISTRADOR'),
   incidenteController.cancelar
 );
 
 // 6. Resolución clínica: cierra el ciclo del incidente (EN_ATENCION -> RESUELTO)
 router.put(
   '/:id/resolver',
-  requireRole('REANIMADOR_MEDICO', 'OPERADOR_GUARDIA', 'ADMINISTRADOR'),
+  requireRole('MEDICO_ACTIVADOR', 'REANIMADOR_MEDICO', 'OPERADOR_GUARDIA', 'ADMINISTRADOR'),
   incidenteController.resolver
 );
 

@@ -181,7 +181,7 @@ export class IncidenteRepository {
           'nombre', act.nombre || ' ' || act.apellido,
           'rol', act.rol
         ) AS activado_por,
-        -- Reanimador
+        -- Reanimador Principal
         CASE
           WHEN rea.id IS NOT NULL THEN
             json_build_object(
@@ -190,7 +190,26 @@ export class IncidenteRepository {
               'rol', rea.rol
             )
           ELSE NULL
-        END AS reanimador
+        END AS reanimador,
+        -- Equipo Completo de Reanimadores (ACK Primario + Apoyo)
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', u.id,
+                'nombre', u.nombre || ' ' || u.apellido,
+                'rol', u.rol,
+                'tipo', iae.tipo_evento,
+                'timestamp', iae.timestamp_evento
+              ) ORDER BY iae.timestamp_evento ASC
+            )
+            FROM incidentes_auditoria_eventos iae
+            INNER JOIN usuarios u ON u.id = iae.usuario_id
+            WHERE iae.incidente_id = i.id
+              AND iae.tipo_evento IN ('ACK_PRIMARIO', 'ACK_REANIMADOR_APOYO')
+          ),
+          '[]'::json
+        ) AS equipo_reanimacion
       FROM incidentes i
       INNER JOIN ubicaciones ub ON ub.id = i.ubicacion_id
       INNER JOIN usuarios act ON act.id = i.activado_por_id

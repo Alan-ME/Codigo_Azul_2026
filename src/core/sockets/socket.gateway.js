@@ -42,9 +42,11 @@ function normalizarIncidente(rawData) {
     estadoRaw:   d.estado,
     ubicacion:   d.ubicacion,
     activadoPor: d.activadoPor,
-    reanimador:  d.reanimador,
-    creadoEn:    d.createdAt || d.timestamp || new Date().toISOString(),
-    latencia:    d.latenciaSegundos || null,
+    reanimador:        d.reanimador,
+    equipoReanimacion: d.equipoReanimacion || d.equipo_reanimacion || [],
+    totalReanimadores: d.totalReanimadores || (d.equipoReanimacion?.length) || (d.reanimador ? 1 : 0),
+    creadoEn:          d.createdAt || d.timestamp || new Date().toISOString(),
+    latencia:          d.latenciaSegundos || null,
   };
 }
 

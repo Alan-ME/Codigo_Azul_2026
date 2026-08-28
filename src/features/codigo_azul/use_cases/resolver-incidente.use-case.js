@@ -52,10 +52,21 @@ export class ResolverIncidenteUseCase {
       );
     }
 
-    // 4. Solo reanimadores, guardia o administradores pueden resolver
-    const rolesPermitidos = ['REANIMADOR_MEDICO', 'OPERADOR_GUARDIA', 'ADMINISTRADOR'];
-    if (!rolesPermitidos.includes(user.rol)) {
-      throw ApiError.forbidden('Solo el equipo de reanimacion, guardia u operadores pueden resolver un incidente.');
+    // 4. Solo el reanimador que atendió el llamado (o miembro del equipo), guardia o administradores pueden resolver
+    const esAdminOGuardia = user.rol === 'ADMINISTRADOR' || user.rol === 'OPERADOR_GUARDIA';
+    const esReanimadorAsignado = Number(incidente.reanimador_id) === Number(user.id);
+
+    if (!esAdminOGuardia && !esReanimadorAsignado) {
+      // Verificar si participó como reanimador secundario de apoyo
+      const participacion = await this.auditRepo.buscarEventosPorIncidente(incidenteId);
+      const participo = Array.isArray(participacion) && participacion.some(
+        (ev) => Number(ev.usuario_id) === Number(user.id) && ['ACK_PRIMARIO', 'ACK_REANIMADOR_APOYO'].includes(ev.tipo_evento)
+      );
+      if (!participo) {
+        throw ApiError.forbidden(
+          'Solo el personal médico que atendió este Código Azul o un administrador pueden finalizar la atención.'
+        );
+      }
     }
 
     // 5. Transaccion ACID: UPDATE + AUDITORIA

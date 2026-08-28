@@ -97,6 +97,18 @@ export class ConfirmarAckUseCase {
         client
       );
 
+      // Consultar equipo completo de reanimación actualizado
+      const equipoRes = await client.query(
+        `SELECT u.id, u.nombre || ' ' || u.apellido AS nombre, u.rol, iae.tipo_evento AS tipo, iae.timestamp_evento AS timestamp
+         FROM incidentes_auditoria_eventos iae
+         INNER JOIN usuarios u ON u.id = iae.usuario_id
+         WHERE iae.incidente_id = $1
+           AND iae.tipo_evento IN ('ACK_PRIMARIO', 'ACK_REANIMADOR_APOYO')
+         ORDER BY iae.timestamp_evento ASC`,
+        [incidenteId]
+      );
+      const equipoReanimacion = equipoRes.rows;
+
       await client.query('COMMIT');
 
       const payloadRespuesta = {
@@ -106,10 +118,12 @@ export class ConfirmarAckUseCase {
         latenciaRespuestaSegundos: latenciaSegundos,
         esReanimadorSecundario,
         reanimador: {
-          id:     user.id,
+          id:     incidenteActualizado.reanimador_id || user.id,
           nombre: `${user.nombre} ${user.apellido}`,
           rol:    user.rol,
         },
+        equipoReanimacion,
+        totalReanimadores:         equipoReanimacion.length,
         ubicacion: {
           edificio:   incidente.edificio,
           piso:       incidente.piso,
@@ -118,7 +132,7 @@ export class ConfirmarAckUseCase {
         },
       };
 
-      // 4. Emitir evento interno para Socket.IO Gateway (Alex)
+      // 4. Emitir evento interno para Socket.IO Gateway
       appEvents.emit('incidente:ack', {
         event:     'codigo_azul_atendido',
         timestamp: ahora.toISOString(),

@@ -22,16 +22,18 @@ export function liberarPuerto(puerto) {
 
       lineas.forEach((linea) => {
         const partes = linea.trim().split(/\s+/);
-        if (partes.length >= 5 && (partes[1].endsWith(`:${puerto}`) || partes[1].includes(`:${puerto}`))) {
+        if (partes.length >= 5) {
           const pid = partes[partes.length - 1];
-          if (pid && pid !== '0') pids.add(pid);
+          if (pid && pid !== '0' && /^\d+$/.test(pid)) {
+            pids.add(pid);
+          }
         }
       });
 
       if (pids.size > 0) {
         pids.forEach((pid) => {
           try {
-            console.log(`    Terminando proceso anterior PID ${pid}...`);
+            console.log(`    Terminando proceso PID ${pid}...`);
             execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
           } catch {
             // proceso ya terminado
