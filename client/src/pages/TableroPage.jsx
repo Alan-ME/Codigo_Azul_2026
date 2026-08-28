@@ -5,19 +5,23 @@
 // ─────────────────────────────────────────────────────────────
 
 import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useIncidentes } from '../context/IncidentesContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import Icono from '../components/common/Icono.jsx';
+import ModalCancelacion from '../components/common/ModalCancelacion.jsx';
 import { initialAreas, initialPacientes, initialUsuarios } from '../data/mockData.js';
 
 export default function TableroPage() {
-  const { llamadosActivos, tomarLlamado, atenderLlamado, escalarLlamado } = useIncidentes();
+  const { user } = useAuth();
+  const { llamadosActivos, tomarLlamado, atenderLlamado, cancelarLlamado, escalarLlamado, puedeUsuarioFinalizarLlamado } = useIncidentes();
   const { formatearHora, segundosADuracion, avatarFallback } = useUI();
 
   const [filtroTipo, setFiltroTipo] = useState('todos');
   const [filtroArea, setFiltroArea] = useState('todas');
   const [orden, setOrden] = useState('prioridad');
   const [tiempoActual, setTiempoActual] = useState(Date.now());
+  const [incidenteACancelar, setIncidenteACancelar] = useState(null);
 
   // Timer para cronómetros cada 1 segundo
   useEffect(() => {
@@ -43,7 +47,8 @@ export default function TableroPage() {
     if (filtroArea !== 'todas') {
       list = list.filter((l) => {
         const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
-        return (p && p.areaId === filtroArea) || filtroArea === 'todas';
+        const ubiMatch = (l.ubicacion?.sectorSala || '').toLowerCase().includes(filtroArea.toLowerCase());
+        return (p && p.areaId === filtroArea) || ubiMatch || filtroArea === 'todas';
       });
     }
 
@@ -127,14 +132,21 @@ export default function TableroPage() {
           </div>
         ) : (
           llamadosFiltrados.map((l) => {
-            const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
+            const tieneUbi = Boolean(l.ubicacion && (l.ubicacion.sectorSala || l.ubicacion.cama));
+            const p = !tieneUbi && l.pacienteId ? initialPacientes.find((pp) => pp.id === l.pacienteId) : null;
             const a = p ? initialAreas.find((aa) => aa.id === p.areaId) : null;
             const enf = l.enfermeroId ? initialUsuarios.find((u) => u.id === l.enfermeroId) : null;
-            const nom = p ? `${p.nombre} ${p.apellido}` : l.pacienteNombre || 'Código Azul Urgente';
-            const ubi = a
-              ? `${a.nombre} · Hab. ${p.habitacion} · Cama ${p.cama}`
-              : l.ubicacion
+
+            const nom = tieneUbi
+              ? `Emergencia en ${l.ubicacion.cama || l.ubicacion.sectorSala || 'Cama'}`
+              : p
+              ? `${p.nombre} ${p.apellido}`
+              : l.pacienteNombre || 'Código Azul Urgente';
+
+            const ubi = tieneUbi
               ? `${l.ubicacion.sectorSala || ''} — ${l.ubicacion.cama || ''}`
+              : a
+              ? `${a.nombre} · Hab. ${p.habitacion} · Cama ${p.cama}`
               : 'Ubicación Hospital';
 
             const avatarSrc = p?.avatar || avatarFallback(nom);
@@ -175,6 +187,18 @@ export default function TableroPage() {
                   <div className="cron">{cronometroTexto}</div>
                 </div>
 
+                {l.atendido && (
+                  <div style={{ margin: '8px 12px 2px', padding: '5px 10px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#34d399', fontSize: '11.5px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Icono nombre="check" size={13} />
+                      <span>En atención: <strong>{l.reanimadorNombre || 'Equipo Reanimador'}</strong></span>
+                    </div>
+                    <span style={{ background: '#10b981', color: '#ffffff', fontSize: '10.5px', fontWeight: 800, padding: '2px 7px', borderRadius: '999px', flexShrink: 0 }}>
+                      👨‍⚕️ {l.totalReanimadores || (l.equipoReanimacion?.length) || 1}/7
+                    </span>
+                  </div>
+                )}
+
                 <div className="fila-info">
                   <div>
                     <Icono nombre={l.origen === 'baño' ? 'bath' : 'cama'} size={14} />
@@ -194,34 +218,84 @@ export default function TableroPage() {
                 </div>
 
                 <div className="botones">
-                  <button
-                    type="button"
-                    className="btn btn-secundario btn-sm"
-                    onClick={() => tomarLlamado(l.id)}
-                  >
-                    <Icono nombre="check" size={14} /> Tomar
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-exito btn-sm"
-                    onClick={() => atenderLlamado(l.id)}
-                  >
-                    Marcar atendido
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-fantasma btn-sm"
-                    title="Escalar a Código Azul"
-                    onClick={() => escalarLlamado(l.id)}
-                  >
-                    <Icono nombre="alerta" size={14} />
-                  </button>
+                  {!l.atendido ? (
+                    <button
+                      type="button"
+                      className="btn btn-secundario btn-sm"
+                      onClick={() => tomarLlamado(l.id)}
+                    >
+                      <Icono nombre="check" size={14} /> Tomar
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      style={{ background: 'rgba(16, 185, 129, 0.2)', borderColor: '#10b981', color: '#34d399', cursor: 'default' }}
+                    >
+                      <Icono nombre="check" size={14} /> Tomado
+                    </button>
+                  )}
+
+                  {puedeUsuarioFinalizarLlamado(l, user) ? (
+                    <button
+                      type="button"
+                      className="btn btn-exito btn-sm"
+                      onClick={() => atenderLlamado(l.id)}
+                    >
+                      Finalizar
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      disabled
+                      style={{
+                        opacity: 0.45,
+                        cursor: 'not-allowed',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: '#94a3b8',
+                      }}
+                      title="Solo el médico reanimador que atendió este llamado o un Administrador pueden finalizarlo."
+                    >
+                      🔒 Finalizar
+                    </button>
+                  )}
+
+                  {l.tipo !== 'codigo-azul' ? (
+                    <button
+                      type="button"
+                      className="btn btn-fantasma btn-sm"
+                      title="Escalar a Código Azul"
+                      onClick={() => escalarLlamado(l.id)}
+                    >
+                      <Icono nombre="alerta" size={14} />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-fantasma btn-sm"
+                      title="Cancelar Código Azul (Falsa Alarma)"
+                      onClick={() => setIncidenteACancelar(l)}
+                      style={{ color: '#f87171' }}
+                    >
+                      <Icono nombre="x" size={14} />
+                    </button>
+                  )}
                 </div>
               </article>
             );
           })
         )}
       </div>
+
+      {/* Modal de Cancelación de Código Azul */}
+      <ModalCancelacion
+        abierto={!!incidenteACancelar}
+        incidente={incidenteACancelar}
+        onConfirmar={cancelarLlamado}
+        onCerrar={() => setIncidenteACancelar(null)}
+      />
     </div>
   );
 }

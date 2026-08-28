@@ -265,6 +265,10 @@ export const ICONOS_PATHS = {
       <path d="M12 10v6M9 13h6M9 3v3M15 3v3" />
     </>
   ),
+  chevronDerecha: <polyline points="9 18 15 12 9 6" />,
+  chevronIzquierda: <polyline points="15 18 9 12 15 6" />,
+  chevronArriba: <polyline points="18 15 12 9 6 15" />,
+  chevronAbajo: <polyline points="6 9 12 15 18 9" />,
 };
 
 export default function Icono({ nombre, size = 20, color, style, className }) {

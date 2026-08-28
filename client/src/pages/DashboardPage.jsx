@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useIncidentes } from '../context/IncidentesContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import Icono from '../components/common/Icono.jsx';
+import ModalCancelacion from '../components/common/ModalCancelacion.jsx';
 import { LineChart, BarChart, PieChart } from '../components/common/Charts.jsx';
 import { initialAreas, initialPacientes, initialTiposLlamado } from '../data/mockData.js';
 
@@ -23,10 +24,13 @@ export default function DashboardPage() {
     reactivarSirena,
     tomarLlamado,
     atenderLlamado,
+    cancelarLlamado,
+    puedeUsuarioFinalizarLlamado,
   } = useIncidentes();
   const { formatearHora, formatearFechaHora, segundosADuracion } = useUI();
 
   const [tiempoActual, setTiempoActual] = useState(Date.now());
+  const [incidenteACancelar, setIncidenteACancelar] = useState(null);
 
   // Ticker de 1 segundo para los cronómetros en vivo
   useEffect(() => {
@@ -169,7 +173,9 @@ export default function DashboardPage() {
           <div className="info">
             <h3>{tituloCA}</h3>
             <p>
-              {codAzul.reanimadorNombre
+              {codAzul.atendido
+                ? `👨‍⚕️ En atención por: ${codAzul.reanimadorNombre || 'Equipo de Reanimación'} (${codAzul.totalReanimadores || (codAzul.equipoReanimacion?.length) || 1}/7 en sitio) · ${detalleCA}`
+                : codAzul.reanimadorNombre
                 ? `👨‍⚕️ Asistencia: ${codAzul.reanimadorNombre} (en camino)`
                 : detalleCA}
             </p>
@@ -198,7 +204,7 @@ export default function DashboardPage() {
               >
                 <Icono nombre="check" size={18} /> Confirmar Asistencia (ACK)
               </button>
-            ) : (
+            ) : puedeUsuarioFinalizarLlamado(codAzul, user) ? (
               <button
                 type="button"
                 className="btn btn-exito"
@@ -207,7 +213,40 @@ export default function DashboardPage() {
               >
                 <Icono nombre="check" size={18} /> Marcar Atendido / Finalizar
               </button>
+            ) : (
+              <button
+                type="button"
+                className="btn"
+                disabled
+                style={{
+                  opacity: 0.5,
+                  cursor: 'not-allowed',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: '#94a3b8',
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                }}
+                title="Solo el médico reanimador que atendió este Código Azul o un Administrador pueden finalizar la atención."
+              >
+                🔒 Finalizar (Solo Reanimador / Admin)
+              </button>
             )}
+
+            <button
+              type="button"
+              className="btn btn-secundario"
+              onClick={() => setIncidenteACancelar(codAzul)}
+              style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                borderColor: '#ef4444',
+                color: '#fca5a5',
+              }}
+            >
+              <Icono nombre="x" size={16} /> Cancelar Alarma
+            </button>
 
             <NavLink to="/tablero" className="btn btn-peligro">
               <Icono nombre="alerta" size={18} /> Ver en tablero
@@ -388,6 +427,14 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Modal de Cancelación de Código Azul */}
+      <ModalCancelacion
+        abierto={!!incidenteACancelar}
+        incidente={incidenteACancelar}
+        onConfirmar={cancelarLlamado}
+        onCerrar={() => setIncidenteACancelar(null)}
+      />
     </div>
   );
 }

@@ -3,28 +3,29 @@
 // Enrutador central optimizado con Code Splitting (React.lazy y Suspense).
 // ─────────────────────────────────────────────────────────────
 
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { IncidentesProvider } from './context/IncidentesContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import AppShell from './components/layout/AppShell.jsx';
+import { lazyWithRetry } from './utils/lazyWithRetry.js';
 
-// Carga diferida de páginas para un bundle inicial ultraliviano (<80 kB)
-const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
-const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
-const TableroPage = lazy(() => import('./pages/TableroPage.jsx'));
-const PacientesPage = lazy(() => import('./pages/PacientesPage.jsx'));
-const HistorialPage = lazy(() => import('./pages/HistorialPage.jsx'));
-const ReportesPage = lazy(() => import('./pages/ReportesPage.jsx'));
-const UsuariosPage = lazy(() => import('./pages/UsuariosPage.jsx'));
-const AreasPage = lazy(() => import('./pages/AreasPage.jsx'));
-const ConfiguracionPage = lazy(() => import('./pages/ConfiguracionPage.jsx'));
-const MobilePreviewPage = lazy(() => import('./pages/MobilePreviewPage.jsx'));
-const PerfilPage = lazy(() => import('./pages/PerfilPage.jsx'));
-const NotificacionesPage = lazy(() => import('./pages/NotificacionesPage.jsx'));
-const AyudaPage = lazy(() => import('./pages/AyudaPage.jsx'));
-const MobileAppStandalonePage = lazy(() => import('./pages/MobileAppStandalonePage.jsx'));
+// Carga diferida de páginas con autoreintento ante actualización de versión
+const LoginPage = lazyWithRetry(() => import('./pages/LoginPage.jsx'));
+const DashboardPage = lazyWithRetry(() => import('./pages/DashboardPage.jsx'));
+const TableroPage = lazyWithRetry(() => import('./pages/TableroPage.jsx'));
+const PacientesPage = lazyWithRetry(() => import('./pages/PacientesPage.jsx'));
+const HistorialPage = lazyWithRetry(() => import('./pages/HistorialPage.jsx'));
+const ReportesPage = lazyWithRetry(() => import('./pages/ReportesPage.jsx'));
+const UsuariosPage = lazyWithRetry(() => import('./pages/UsuariosPage.jsx'));
+const AreasPage = lazyWithRetry(() => import('./pages/AreasPage.jsx'));
+const ConfiguracionPage = lazyWithRetry(() => import('./pages/ConfiguracionPage.jsx'));
+const MobilePreviewPage = lazyWithRetry(() => import('./pages/MobilePreviewPage.jsx'));
+const PerfilPage = lazyWithRetry(() => import('./pages/PerfilPage.jsx'));
+const NotificacionesPage = lazyWithRetry(() => import('./pages/NotificacionesPage.jsx'));
+const AyudaPage = lazyWithRetry(() => import('./pages/AyudaPage.jsx'));
+const MobileAppStandalonePage = lazyWithRetry(() => import('./pages/MobileAppStandalonePage.jsx'));
 
 function LoadingFallback() {
   return (

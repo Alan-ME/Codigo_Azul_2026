@@ -72,9 +72,15 @@ export default function AppShell() {
   const handleRolSwitch = (e) => {
     const nuevoRol = e.target.value;
     cambiarRol(nuevoRol);
+    const nombres = {
+      admin: 'Administrador/a',
+      enfermero: 'Enfermero/a (Médico Activador)',
+      reanimador: 'Reanimador/a Médico/a',
+      guardia: 'Operador/a de Guardia',
+    };
     toast({
       titulo: 'Rol cambiado',
-      msj: `Ahora navegás como ${nuevoRol === 'admin' ? 'Administrador' : 'Enfermero/a'}`,
+      msj: `Ahora navegás como ${nombres[nuevoRol] || nuevoRol}`,
       tipo: 'info',
     });
   };
@@ -195,8 +201,10 @@ export default function AppShell() {
             <div className="rol-switch" title="Cambiar rol para demostración">
               <span>DEMO</span>
               <select id="rolSwitch" value={rol} onChange={handleRolSwitch}>
-                <option value="admin">Administrador</option>
-                <option value="enfermero">Enfermero/a</option>
+                <option value="admin">Administrador/a</option>
+                <option value="enfermero">Enfermero/a (Activador)</option>
+                <option value="reanimador">Reanimador/a Médico/a</option>
+                <option value="guardia">Operador/a de Guardia</option>
               </select>
             </div>
 
