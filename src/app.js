@@ -41,6 +41,10 @@ app.use(
         connectSrc: ["'self'", "ws:", "wss:", "https://fonts.googleapis.com", "https://fonts.gstatic.com", "https:", "http://localhost:*", "http://127.0.0.1:*"],
       },
     },
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
 app.use(cors({ origin: true, credentials: true }));   // CORS dinámico habilitado para cualquier host
 app.use(express.json({ limit: '1mb' }));        // Parseo de JSON
 app.use(requestLogger);                         // Log de requests
