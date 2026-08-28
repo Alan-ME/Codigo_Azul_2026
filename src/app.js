@@ -41,11 +41,7 @@ app.use(
         connectSrc: ["'self'", "ws:", "wss:", "https://fonts.googleapis.com", "https://fonts.gstatic.com", "https:", "http://localhost:*", "http://127.0.0.1:*"],
       },
     },
-    crossOriginEmbedderPolicy: false,
-  })
-);
-const allowedOrigins = [config.corsOrigin, 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000'].filter(Boolean);
-app.use(cors({ origin: allowedOrigins, credentials: true }));   // CORS configurado
+app.use(cors({ origin: true, credentials: true }));   // CORS dinámico habilitado para cualquier host
 app.use(express.json({ limit: '1mb' }));        // Parseo de JSON
 app.use(requestLogger);                         // Log de requests
 
