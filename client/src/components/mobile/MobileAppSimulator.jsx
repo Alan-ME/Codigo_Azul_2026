@@ -3,9 +3,9 @@
 // Simulador móvil reactivo con separación en subcomponentes modulares.
 // ─────────────────────────────────────────────────────────────
 
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { useIncidentes } from '../../context/IncidentesContext.jsx';
+import { useState } from 'react';
 import { useUI } from '../../context/UIContext.jsx';
+import { useMobileEmergency } from '../../hooks/useMobileEmergency.js';
 import { soundService } from '../../services/soundService.js';
 import Icono from '../common/Icono.jsx';
 
@@ -14,140 +14,12 @@ import SelectorUbicacionPicker from './screens/SelectorUbicacionPicker.jsx';
 import AlertaReanimadorScreen from './screens/AlertaReanimadorScreen.jsx';
 import ReanimadorEsperaScreen from './screens/ReanimadorEsperaScreen.jsx';
 
-const CATALOGO_UBICACIONES = [
-  {
-    id: 'ed-central',
-    nombre: 'Edificio Central',
-    pisos: [
-      {
-        id: 'piso-1',
-        nombre: 'Piso 1 - Guardia y Shockroom',
-        salas: [
-          { id: 'sala-shock', nombre: 'Shockroom', camas: ['Cama 01', 'Cama 02', 'Cama 03', 'Cama 04'] },
-          { id: 'sala-obs', nombre: 'Observación', camas: ['Cama 01', 'Cama 02', 'Cama 03', 'Cama 04', 'Cama 05', 'Cama 06'] },
-        ],
-      },
-      {
-        id: 'piso-2',
-        nombre: 'Piso 2 - Cuidados Críticos',
-        salas: [
-          { id: 'sala-uti', nombre: 'Terapia Intensiva (UTI)', camas: ['Cama 01', 'Cama 02', 'Cama 03', 'Cama 04', 'Cama 05', 'Cama 06', 'Cama 07', 'Cama 08'] },
-          { id: 'sala-uco', nombre: 'Unidad Coronaria (UCO)', camas: ['Cama 01', 'Cama 02', 'Cama 03', 'Cama 04'] },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'ed-maternidad',
-    nombre: 'Pabellón Materno-Infantil',
-    pisos: [
-      {
-        id: 'piso-mat',
-        nombre: 'Piso 1 - Maternidad y Neo',
-        salas: [
-          { id: 'sala-neo', nombre: 'Neonatología', camas: ['Incubadora 01', 'Incubadora 02', 'Incubadora 03', 'Incubadora 04'] },
-          { id: 'sala-parto', nombre: 'Centro Obstétrico', camas: ['Cama 01', 'Cama 02'] },
-        ],
-      },
-    ],
-  },
-];
-
 export default function MobileAppSimulator() {
-  const {
-    llamadosActivos,
-    crearLlamado,
-    tomarLlamado,
-    atenderLlamado,
-    sirenaSilenciada,
-    silenciarSirena,
-    reactivarSirena,
-  } = useIncidentes();
-  const { toast, segundosADuracion } = useUI();
-
+  const { toast } = useUI();
   const [rolActivo, setRolActivo] = useState('enfermero');
   const [pantallaEnfermero, setPantallaEnfermero] = useState('panico');
-  const [pasoSelector, setPasoSelector] = useState(1);
 
-  const [edificioSel, setEdificioSel] = useState(CATALOGO_UBICACIONES[0]);
-  const [pisoSel, setPisoSel] = useState(CATALOGO_UBICACIONES[0].pisos[0]);
-  const [salaSel, setSalaSel] = useState(CATALOGO_UBICACIONES[0].pisos[0].salas[0]);
-  const [camaSel, setCamaSel] = useState('Cama 01');
-
-  const [armando, setArmando] = useState(false);
-  const [modalConfirmarAbierto, setModalConfirmarAbierto] = useState(false);
-  const holdTimerRef = useRef(null);
-
-  const incidenteActivo = useMemo(() => {
-    return llamadosActivos.find((l) => l.tipo === 'codigo-azul');
-  }, [llamadosActivos]);
-
-  useEffect(() => {
-    if (!incidenteActivo) {
-      soundService.stop();
-    } else if (rolActivo === 'reanimador') {
-      if (!incidenteActivo.atendido && !soundService.isSilenciado()) {
-        soundService.start().catch(() => {});
-      } else {
-        soundService.stop();
-      }
-    } else {
-      soundService.stop();
-    }
-  }, [rolActivo, incidenteActivo]);
-
-  const [tiempoActual, setTiempoActual] = useState(Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setTiempoActual(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const cronometroTexto = useMemo(() => {
-    if (!incidenteActivo) return '00:00';
-    const inicio = new Date(incidenteActivo.horaInicio).getTime();
-    const seg = Math.max(0, Math.floor((tiempoActual - inicio) / 1000));
-    return segundosADuracion(seg);
-  }, [incidenteActivo, tiempoActual, segundosADuracion]);
-
-  const pisosDisponibles = edificioSel?.pisos || [];
-  const salasDisponibles = pisoSel?.salas || [];
-  const camasDisponibles = salaSel?.camas || [];
-
-  const handlePointerDown = () => {
-    setArmando(true);
-    holdTimerRef.current = setTimeout(() => {
-      setArmando(false);
-      setModalConfirmarAbierto(true);
-    }, 800);
-  };
-
-  const handlePointerCancel = () => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-    setArmando(false);
-  };
-
-  const handleDispararEmergencia = () => {
-    crearLlamado({
-      tipo: 'codigo-azul',
-      origen: 'cama',
-      pacienteId: 'p2',
-      ubicacion: {
-        edificio: edificioSel.nombre,
-        piso: pisoSel.nombre,
-        sectorSala: salaSel.nombre,
-        cama: camaSel,
-      },
-    });
-    setModalConfirmarAbierto(false);
-    toast({
-      titulo: '¡CÓDIGO AZUL ACTIVADO!',
-      msj: `Alerta convocada en ${salaSel.nombre} · ${camaSel}`,
-      tipo: 'peligro',
-    });
-  };
+  const mobile = useMobileEmergency(rolActivo);
 
   return (
     <div
@@ -224,41 +96,41 @@ export default function MobileAppSimulator() {
 
       {/* Vistas */}
       {rolActivo === 'enfermero' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
           {pantallaEnfermero === 'panico' ? (
             <PanicoScreen
-              edificioSel={edificioSel}
-              salaSel={salaSel}
-              camaSel={camaSel}
-              armando={armando}
+              edificioSel={mobile.edificioSel}
+              salaSel={mobile.salaSel}
+              camaSel={mobile.camaSel}
+              armando={mobile.armando}
               onAbrirSelector={() => {
-                setPasoSelector(1);
+                mobile.setPasoSelector(1);
                 setPantallaEnfermero('selector');
               }}
-              onPointerDown={handlePointerDown}
-              onPointerCancel={handlePointerCancel}
+              onPointerDown={mobile.handlePointerDown}
+              onPointerCancel={mobile.handlePointerCancel}
             />
           ) : (
             <SelectorUbicacionPicker
-              pasoSelector={pasoSelector}
-              setPasoSelector={setPasoSelector}
-              edificioSel={edificioSel}
-              setEdificioSel={setEdificioSel}
-              pisoSel={pisoSel}
-              setPisoSel={setPisoSel}
-              salaSel={salaSel}
-              setSalaSel={setSalaSel}
-              camaSel={camaSel}
-              setCamaSel={setCamaSel}
-              catalogoUbicaciones={CATALOGO_UBICACIONES}
-              pisosDisponibles={pisosDisponibles}
-              salasDisponibles={salasDisponibles}
-              camasDisponibles={camasDisponibles}
+              pasoSelector={mobile.pasoSelector}
+              setPasoSelector={mobile.setPasoSelector}
+              edificioSel={mobile.edificioSel}
+              setEdificioSel={mobile.setEdificioSel}
+              pisoSel={mobile.pisoSel}
+              setPisoSel={mobile.setPisoSel}
+              salaSel={mobile.salaSel}
+              setSalaSel={mobile.setSalaSel}
+              camaSel={mobile.camaSel}
+              setCamaSel={mobile.setCamaSel}
+              catalogoUbicaciones={mobile.catalogoUbicaciones}
+              pisosDisponibles={mobile.pisosDisponibles}
+              salasDisponibles={mobile.salasDisponibles}
+              camasDisponibles={mobile.camasDisponibles}
               onFinalizar={(cama) => {
                 setPantallaEnfermero('panico');
                 toast({
                   titulo: 'Ubicación seleccionada',
-                  msj: `${salaSel.nombre} — ${cama}`,
+                  msj: `${mobile.salaSel.nombre} — ${cama}`,
                   tipo: 'exito',
                 });
               }}
@@ -269,28 +141,33 @@ export default function MobileAppSimulator() {
       )}
 
       {rolActivo === 'reanimador' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {!incidenteActivo ? (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          {!mobile.incidenteActivo ? (
             <ReanimadorEsperaScreen />
           ) : (
             <AlertaReanimadorScreen
-              incidenteActivo={incidenteActivo}
-              edificioSel={edificioSel}
-              pisoSel={pisoSel}
-              salaSel={salaSel}
-              camaSel={camaSel}
-              cronometroTexto={cronometroTexto}
-              sirenaSilenciada={sirenaSilenciada}
-              onConfirmarACK={() => tomarLlamado(incidenteActivo.id)}
-              onToggleSirena={sirenaSilenciada ? reactivarSirena : silenciarSirena}
-              onFinalizarAtencion={() => atenderLlamado(incidenteActivo.id)}
+              incidenteActivo={mobile.incidenteActivo}
+              todosLosIncidentes={mobile.incidentesCodAzul}
+              incidenteSeleccionadoIndex={mobile.indiceSel}
+              onSeleccionarIncidente={(idx) => mobile.setIndiceSel(idx)}
+              edificioSel={mobile.edificioSel}
+              pisoSel={mobile.pisoSel}
+              salaSel={mobile.salaSel}
+              camaSel={mobile.camaSel}
+              cronometroTexto={mobile.cronometroTexto}
+              sirenaSilenciada={mobile.sirenaSilenciada}
+              onConfirmarACK={(id) => mobile.tomarLlamado(id || mobile.incidenteActivo.id)}
+              onToggleSirena={mobile.sirenaSilenciada ? mobile.reactivarSirena : mobile.silenciarSirena}
+              onFinalizarAtencion={(id) => mobile.atenderLlamado(id || mobile.incidenteActivo.id)}
+              segundosADuracion={mobile.segundosADuracion}
+              tiempoActual={mobile.tiempoActual}
             />
           )}
         </div>
       )}
 
       {/* Modal de Disparo */}
-      {modalConfirmarAbierto && (
+      {mobile.modalConfirmarAbierto && (
         <div
           style={{
             position: 'absolute',
@@ -322,13 +199,13 @@ export default function MobileAppSimulator() {
             <p style={{ fontSize: '13px', color: '#cbd5e1', margin: '0 0 16px' }}>
               Se alertará inmediatamente al equipo de reanimación médica para:{' '}
               <strong style={{ color: '#fff' }}>
-                {salaSel.nombre} — {camaSel}
+                {mobile.salaSel.nombre} — {mobile.camaSel}
               </strong>
             </p>
             <div style={{ display: 'grid', gap: '8px' }}>
               <button
                 type="button"
-                onClick={handleDispararEmergencia}
+                onClick={mobile.ejecutarDisparoPanico}
                 style={{
                   background: '#dc2626',
                   color: '#fff',
@@ -345,7 +222,7 @@ export default function MobileAppSimulator() {
               </button>
               <button
                 type="button"
-                onClick={() => setModalConfirmarAbierto(false)}
+                onClick={() => mobile.setModalConfirmarAbierto(false)}
                 style={{
                   background: 'transparent',
                   border: '1px solid rgba(255,255,255,0.2)',

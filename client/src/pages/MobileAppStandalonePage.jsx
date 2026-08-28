@@ -1,12 +1,13 @@
 // ─────────────────────────────────────────────────────────────
 // client/src/pages/MobileAppStandalonePage.jsx
 // Aplicación Móvil PWA Standalone modular para celulares reales (/alarma).
+// Acceso directo e instantáneo sin pantalla de login previa.
 // ─────────────────────────────────────────────────────────────
 
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { useIncidentes } from '../context/IncidentesContext.jsx';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
+import { useMobileEmergency } from '../hooks/useMobileEmergency.js';
 import { soundService } from '../services/soundService.js';
 import Icono from '../components/common/Icono.jsx';
 
@@ -15,208 +16,25 @@ import SelectorUbicacionPicker from '../components/mobile/screens/SelectorUbicac
 import AlertaReanimadorScreen from '../components/mobile/screens/AlertaReanimadorScreen.jsx';
 import ReanimadorEsperaScreen from '../components/mobile/screens/ReanimadorEsperaScreen.jsx';
 
-const CATALOGO_UBICACIONES = [
-  {
-    id: 'ed-central',
-    nombre: 'Monoblock Central',
-    pisos: [
-      {
-        id: 'piso-1',
-        nombre: 'Piso 1 - Guardia y Shockroom',
-        salas: [
-          { id: 'sala-shock', nombre: 'Guardia General', camas: ['Shockroom-01', 'Shockroom-02', 'Cama 01', 'Cama 02'] },
-          { id: 'sala-obs', nombre: 'Observación', camas: ['Cama 01', 'Cama 02', 'Cama 03', 'Cama 04', 'Cama 05', 'Cama 06'] },
-        ],
-      },
-      {
-        id: 'piso-2',
-        nombre: 'Piso 2 - Cuidados Críticos',
-        salas: [
-          { id: 'sala-uti', nombre: 'Unidad de Cuidados Intensivos', camas: ['UCI-01', 'UCI-04', 'Cama 01', 'Cama 02'] },
-          { id: 'sala-uco', nombre: 'Unidad Coronaria (UCO)', camas: ['UCO-02', 'Cama 01', 'Cama 02'] },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'ed-maternidad',
-    nombre: 'Pabellón Materno-Infantil',
-    pisos: [
-      {
-        id: 'piso-mat',
-        nombre: 'Piso 1 - Maternidad y Neo',
-        salas: [
-          { id: 'sala-neo', nombre: 'Neonatología', camas: ['Cuna-05', 'Incubadora 01', 'Incubadora 02'] },
-          { id: 'sala-parto', nombre: 'Centro Obstétrico', camas: ['Cama 01', 'Cama 02'] },
-        ],
-      },
-    ],
-  },
-];
-
 export default function MobileAppStandalonePage() {
-  const {
-    llamadosActivos,
-    crearLlamado,
-    tomarLlamado,
-    atenderLlamado,
-    sirenaSilenciada,
-    silenciarSirena,
-    reactivarSirena,
-  } = useIncidentes();
-  const { login: authLogin, logout: authLogout, isBackendOnline, token } = useAuth();
-  const { toast, segundosADuracion } = useUI();
+  const { login: authLogin, token } = useAuth();
+  const { toast } = useUI();
 
-  const [sesion, setSesion] = useState(() => {
-    const s = localStorage.getItem('codazul_movil_sesion');
-    return s ? JSON.parse(s) : null;
+  // Rol activo directo (sin formulario de inicio de sesión)
+  const [rolActivo, setRolActivo] = useState(() => {
+    return localStorage.getItem('codazul_movil_rol') || 'enfermero';
   });
 
-  const [usuarioInput, setUsuarioInput] = useState('');
-  const [passwordInput, setPasswordInput] = useState('');
-  const [errorLogin, setErrorLogin] = useState('');
+  const [pantallaEnfermero, setPantallaEnfermero] = useState('panico');
 
-  const [pantalla, setPantalla] = useState(() => {
-    if (!sesion) return 'login';
-    return sesion.rol === 'enfermero' ? 'panico' : 'reanimador';
-  });
+  const mobile = useMobileEmergency(rolActivo);
 
-  const [pasoSelector, setPasoSelector] = useState(1);
-  const [edificioSel, setEdificioSel] = useState(CATALOGO_UBICACIONES[0]);
-  const [pisoSel, setPisoSel] = useState(CATALOGO_UBICACIONES[0].pisos[0]);
-  const [salaSel, setSalaSel] = useState(CATALOGO_UBICACIONES[0].pisos[0].salas[0]);
-  const [camaSel, setCamaSel] = useState('Shockroom-01');
-
-  const [armando, setArmando] = useState(false);
-  const [modalConfirmarAbierto, setModalConfirmarAbierto] = useState(false);
-  const holdTimerRef = useRef(null);
-
-  // Auto-sincronizar JWT y WebSockets al cargar la vista móvil
+  // Auto-sincronizar JWT según el rol activo en tiempo real
   useEffect(() => {
-    if (sesion && !token) {
-      const email = sesion.rol === 'reanimador' ? 'reanimador1@hospital.gob.ar' : 'medico.activador@hospital.gob.ar';
-      authLogin({ email, password: 'Password123!', rol: sesion.rol }).catch(() => {});
-    }
-  }, [sesion, token, authLogin]);
-
-  const incidenteActivo = useMemo(() => {
-    return llamadosActivos.find((l) => l.tipo === 'codigo-azul');
-  }, [llamadosActivos]);
-
-  useEffect(() => {
-    if (!incidenteActivo) {
-      soundService.stop();
-      if (sesion?.rol === 'reanimador' && pantalla === 'alerta') {
-        setPantalla('reanimador');
-      }
-    } else if (sesion?.rol === 'reanimador') {
-      if (pantalla !== 'alerta') {
-        setPantalla('alerta');
-      }
-      if (!incidenteActivo.atendido && !soundService.isSilenciado()) {
-        soundService.start().catch(() => {});
-      } else {
-        soundService.stop();
-      }
-    } else {
-      soundService.stop();
-    }
-  }, [incidenteActivo, sesion, pantalla]);
-
-  const [tiempoActual, setTiempoActual] = useState(Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setTiempoActual(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const cronometroTexto = useMemo(() => {
-    if (!incidenteActivo) return '00:00';
-    const inicio = new Date(incidenteActivo.horaInicio).getTime();
-    const seg = Math.max(0, Math.floor((tiempoActual - inicio) / 1000));
-    return segundosADuracion(seg);
-  }, [incidenteActivo, tiempoActual, segundosADuracion]);
-
-  const handleLogin = async (u, p) => {
-    const uVal = (u || usuarioInput).toLowerCase();
-    const rol = (uVal === 'reanimador' || uVal === 'medico') ? 'reanimador' : 'enfermero';
-
-    try {
-      const email = rol === 'reanimador' ? 'reanimador1@hospital.gob.ar' : 'medico.activador@hospital.gob.ar';
-      await authLogin({ email, password: 'Password123!', rol });
-    } catch (err) {
-      console.warn('[MOBILE] Login con backend:', err.message);
-    }
-
-    const data = {
-      nombre: rol === 'enfermero' ? 'Camila Herrera (Enfermería)' : 'Dr. Ivan Cardozo (Reanimador)',
-      rol,
-      matricula: rol === 'enfermero' ? 'ENF-4482' : 'MED-9081',
-    };
-    setSesion(data);
-    localStorage.setItem('codazul_movil_sesion', JSON.stringify(data));
-    setPantalla(rol === 'enfermero' ? 'panico' : 'reanimador');
-    if (rol === 'reanimador') {
-      soundService.prime();
-    }
-  };
-
-  const handleCerrarSesion = () => {
-    authLogout();
-    setSesion(null);
-    localStorage.removeItem('codazul_movil_sesion');
-    soundService.stop();
-    setPantalla('login');
-  };
-
-  const handlePointerDown = () => {
-    setArmando(true);
-    holdTimerRef.current = setTimeout(() => {
-      setArmando(false);
-      setModalConfirmarAbierto(true);
-    }, 800);
-  };
-
-  const handlePointerCancel = () => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-    setArmando(false);
-  };
-
-  const handleDispararEmergencia = () => {
-    // Resolver ubicacionId según la selección
-    let ubiId = 1;
-    const sName = (salaSel?.nombre || '').toLowerCase();
-    const cName = (camaSel || '').toLowerCase();
-    if (cName.includes('02') || sName.includes('shock')) ubiId = 2;
-    else if (sName.includes('quiróf') || sName.includes('quirof')) ubiId = 3;
-    else if (sName.includes('intensiv') || sName.includes('uti') || cName.includes('uci-01')) ubiId = 4;
-    else if (cName.includes('uci-04')) ubiId = 5;
-    else if (sName.includes('coronaria') || sName.includes('uco')) ubiId = 6;
-    else if (sName.includes('neo') || cName.includes('cuna')) ubiId = 7;
-    else if (sName.includes('recuper')) ubiId = 8;
-
-    crearLlamado({
-      tipo: 'codigo-azul',
-      origen: 'cama',
-      pacienteId: 'p2',
-      ubicacionId: ubiId,
-      ubicacion: {
-        id: ubiId,
-        edificio: edificioSel.nombre,
-        piso: pisoSel.nombre,
-        sectorSala: salaSel.nombre,
-        cama: camaSel,
-      },
-    });
-    setModalConfirmarAbierto(false);
-    toast({
-      titulo: '¡CÓDIGO AZUL ACTIVADO!',
-      msj: `Alerta convocada en ${salaSel.nombre} · ${camaSel}`,
-      tipo: 'peligro',
-    });
-  };
+    localStorage.setItem('codazul_movil_rol', rolActivo);
+    const email = rolActivo === 'reanimador' ? 'reanimador1@hospital.gob.ar' : 'medico.activador@hospital.gob.ar';
+    authLogin({ email, password: 'Password123!', rol: rolActivo }).catch(() => {});
+  }, [rolActivo, authLogin]);
 
   return (
     <div
@@ -233,188 +51,144 @@ export default function MobileAppStandalonePage() {
         overflow: 'hidden',
       }}
     >
-      {/* Topbar */}
-      {sesion && (
-        <header
+      {/* Topbar con Selector Rápido de Rol */}
+      <header
+        style={{
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          background: 'rgba(15, 23, 42, 0.95)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          zIndex: 10,
+        }}
+      >
+        <div
           style={{
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            background: 'rgba(15, 23, 42, 0.95)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-            zIndex: 10,
+            width: '32px',
+            height: '32px',
+            borderRadius: '9px',
+            background: 'linear-gradient(135deg, #0b5fff, #0aa5ff)',
+            display: 'grid',
+            placeItems: 'center',
           }}
         >
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '9px',
-              background: 'linear-gradient(135deg, #0b5fff, #0aa5ff)',
-              display: 'grid',
-              placeItems: 'center',
-            }}
-          >
-            <Icono nombre="corazon" size={17} color="#ffffff" />
+          <Icono nombre="corazon" size={17} color="#ffffff" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1.1 }}>
+            {rolActivo === 'enfermero' ? 'Camila Herrera' : 'Dr. Ivan Cardozo'}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1.1 }}>{sesion.nombre}</div>
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase' }}>
-              {sesion.rol === 'enfermero' ? 'Enfermería de Guardia' : 'Médico Reanimador'}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleCerrarSesion}
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#cbd5e1',
-              borderRadius: '8px',
-              padding: '6px 10px',
-              fontSize: '11.5px',
-              cursor: 'pointer',
-            }}
-          >
-            Salir
-          </button>
-        </header>
-      )}
-
-      {/* Login */}
-      {!sesion && (
-        <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: '24px' }}>
-          <div style={{ width: '100%', maxWidth: '340px', textAlign: 'center' }}>
-            <div
-              style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '18px',
-                background: 'linear-gradient(135deg, #0b5fff, #0aa5ff)',
-                margin: '0 auto 16px',
-                display: 'grid',
-                placeItems: 'center',
-                boxShadow: '0 10px 25px rgba(11, 95, 255, 0.4)',
-              }}
-            >
-              <Icono nombre="corazon" size={32} color="#ffffff" />
-            </div>
-            <h1 style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 4px', color: '#fff' }}>
-              Código Azul Móvil
-            </h1>
-            <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 24px' }}>
-              Sistema de respuesta y pánico hospitalario
-            </p>
-
-            <div style={{ display: 'grid', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => handleLogin('enfermero', '1234')}
-                style={{
-                  background: '#0b5fff',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                🩺 Ingresar como Enfermero/a (Botón Pánico)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleLogin('reanimador', '1234')}
-                style={{
-                  background: '#dc2626',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                🚨 Ingresar como Reanimador/a (Alarma Sonora)
-              </button>
-            </div>
+          <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase' }}>
+            {rolActivo === 'enfermero' ? 'Enfermería de Guardia' : 'Médico Reanimador'}
           </div>
         </div>
-      )}
+
+        {/* Switcher de Rol */}
+        <select
+          value={rolActivo}
+          onChange={(e) => {
+            const nuevo = e.target.value;
+            setRolActivo(nuevo);
+            if (nuevo === 'enfermero') soundService.stop();
+            else soundService.prime();
+            toast({
+              titulo: 'Modo Móvil Actualizado',
+              msj: nuevo === 'enfermero' ? '🩺 Modo Enfermería (Botón de pánico)' : '🚨 Modo Reanimación (Receptor de alarmas)',
+              tipo: 'info',
+            });
+          }}
+          style={{
+            background: rolActivo === 'reanimador' ? 'rgba(220, 38, 38, 0.25)' : 'rgba(11, 95, 255, 0.25)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            color: rolActivo === 'reanimador' ? '#fca5a5' : '#38bdf8',
+            borderRadius: '8px',
+            padding: '5px 10px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          <option value="enfermero">🩺 Enfermero/a</option>
+          <option value="reanimador">🚨 Reanimador/a</option>
+        </select>
+      </header>
 
       {/* Pantallas de Enfermero */}
-      {sesion?.rol === 'enfermero' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {pantalla === 'panico' ? (
+      {rolActivo === 'enfermero' && (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          {pantallaEnfermero === 'panico' ? (
             <PanicoScreen
-              edificioSel={edificioSel}
-              salaSel={salaSel}
-              camaSel={camaSel}
-              armando={armando}
+              edificioSel={mobile.edificioSel}
+              salaSel={mobile.salaSel}
+              camaSel={mobile.camaSel}
+              armando={mobile.armando}
               onAbrirSelector={() => {
-                setPasoSelector(1);
-                setPantalla('selector');
+                mobile.setPasoSelector(1);
+                setPantallaEnfermero('selector');
               }}
-              onPointerDown={handlePointerDown}
-              onPointerCancel={handlePointerCancel}
+              onPointerDown={mobile.handlePointerDown}
+              onPointerCancel={mobile.handlePointerCancel}
             />
           ) : (
             <SelectorUbicacionPicker
-              pasoSelector={pasoSelector}
-              setPasoSelector={setPasoSelector}
-              edificioSel={edificioSel}
-              setEdificioSel={setEdificioSel}
-              pisoSel={pisoSel}
-              setPisoSel={setPisoSel}
-              salaSel={salaSel}
-              setSalaSel={setSalaSel}
-              camaSel={camaSel}
-              setCamaSel={setCamaSel}
-              catalogoUbicaciones={CATALOGO_UBICACIONES}
-              pisosDisponibles={edificioSel?.pisos || []}
-              salasDisponibles={pisoSel?.salas || []}
-              camasDisponibles={salaSel?.camas || []}
+              pasoSelector={mobile.pasoSelector}
+              setPasoSelector={mobile.setPasoSelector}
+              edificioSel={mobile.edificioSel}
+              setEdificioSel={mobile.setEdificioSel}
+              pisoSel={mobile.pisoSel}
+              setPisoSel={mobile.setPisoSel}
+              salaSel={mobile.salaSel}
+              setSalaSel={mobile.setSalaSel}
+              camaSel={mobile.camaSel}
+              setCamaSel={mobile.setCamaSel}
+              catalogoUbicaciones={mobile.catalogoUbicaciones}
+              pisosDisponibles={mobile.pisosDisponibles}
+              salasDisponibles={mobile.salasDisponibles}
+              camasDisponibles={mobile.camasDisponibles}
               onFinalizar={(cama) => {
-                setPantalla('panico');
+                setPantallaEnfermero('panico');
                 toast({
                   titulo: 'Ubicación seleccionada',
-                  msj: `${salaSel.nombre} — ${cama}`,
+                  msj: `${mobile.salaSel.nombre} — ${cama}`,
                   tipo: 'exito',
                 });
               }}
-              onCancelar={() => setPantalla('panico')}
+              onCancelar={() => setPantallaEnfermero('panico')}
             />
           )}
         </div>
       )}
 
       {/* Pantallas de Reanimador */}
-      {sesion?.rol === 'reanimador' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {!incidenteActivo ? (
+      {rolActivo === 'reanimador' && (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          {!mobile.incidenteActivo ? (
             <ReanimadorEsperaScreen />
           ) : (
             <AlertaReanimadorScreen
-              incidenteActivo={incidenteActivo}
-              edificioSel={edificioSel}
-              pisoSel={pisoSel}
-              salaSel={salaSel}
-              camaSel={camaSel}
-              cronometroTexto={cronometroTexto}
-              sirenaSilenciada={sirenaSilenciada}
-              onConfirmarACK={() => tomarLlamado(incidenteActivo.id)}
-              onToggleSirena={sirenaSilenciada ? reactivarSirena : silenciarSirena}
-              onFinalizarAtencion={() => atenderLlamado(incidenteActivo.id)}
+              incidenteActivo={mobile.incidenteActivo}
+              todosLosIncidentes={mobile.incidentesCodAzul}
+              incidenteSeleccionadoIndex={mobile.indiceSel}
+              onSeleccionarIncidente={(idx) => mobile.setIndiceSel(idx)}
+              edificioSel={mobile.edificioSel}
+              pisoSel={mobile.pisoSel}
+              salaSel={mobile.salaSel}
+              camaSel={mobile.camaSel}
+              cronometroTexto={mobile.cronometroTexto}
+              sirenaSilenciada={mobile.sirenaSilenciada}
+              onConfirmarACK={(id) => mobile.tomarLlamado(id || mobile.incidenteActivo.id)}
+              onToggleSirena={mobile.sirenaSilenciada ? mobile.reactivarSirena : mobile.silenciarSirena}
+              onFinalizarAtencion={(id) => mobile.atenderLlamado(id || mobile.incidenteActivo.id)}
+              segundosADuracion={mobile.segundosADuracion}
+              tiempoActual={mobile.tiempoActual}
             />
           )}
         </div>
       )}
 
-      {/* Modal de Disparo */}
-      {modalConfirmarAbierto && (
+      {/* Modal de Confirmación de Disparo */}
+      {mobile.modalConfirmarAbierto && (
         <div
           style={{
             position: 'absolute',
@@ -444,36 +218,36 @@ export default function MobileAppStandalonePage() {
               ¿Confirmar Código Azul?
             </h3>
             <p style={{ fontSize: '13px', color: '#cbd5e1', margin: '0 0 16px' }}>
-              Se alertará inmediatamente al equipo de reanimación médica para:{' '}
-              <strong style={{ color: '#fff' }}>
-                {salaSel.nombre} — {camaSel}
+              Se convocará inmediatamente al equipo de reanimación a:{' '}
+              <strong style={{ color: '#ffffff' }}>
+                {mobile.salaSel?.nombre} — {mobile.camaSel}
               </strong>
             </p>
             <div style={{ display: 'grid', gap: '8px' }}>
               <button
                 type="button"
-                onClick={handleDispararEmergencia}
+                onClick={mobile.ejecutarDisparoPanico}
                 style={{
-                  background: '#dc2626',
-                  color: '#fff',
+                  background: '#ef4444',
+                  color: '#ffffff',
                   border: 'none',
                   borderRadius: '12px',
                   padding: '14px',
                   fontSize: '15px',
                   fontWeight: 800,
                   cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.4)',
+                  boxShadow: '0 6px 18px rgba(239, 68, 68, 0.4)',
                 }}
               >
-                ¡SÍ, CONVOCAR AHORA!
+                🚨 SÍ, ACTIVAR ALERTA
               </button>
               <button
                 type="button"
-                onClick={() => setModalConfirmarAbierto(false)}
+                onClick={() => mobile.setModalConfirmarAbierto(false)}
                 style={{
-                  background: 'transparent',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  color: '#94a3b8',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: '#cbd5e1',
                   borderRadius: '12px',
                   padding: '10px',
                   fontSize: '13px',
