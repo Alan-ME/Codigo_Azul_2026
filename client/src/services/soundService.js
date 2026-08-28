@@ -24,15 +24,18 @@ function ensureContext() {
 if (typeof window !== 'undefined') {
   const unlockAudio = () => {
     try {
-      if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
+      const ctx = ensureContext();
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume();
       }
     } catch { }
-    window.removeEventListener('click', unlockAudio);
-    window.removeEventListener('touchstart', unlockAudio);
+    ['click', 'touchstart', 'pointerdown', 'keydown'].forEach((evt) => {
+      window.removeEventListener(evt, unlockAudio);
+    });
   };
-  window.addEventListener('click', unlockAudio, { once: true });
-  window.addEventListener('touchstart', unlockAudio, { once: true });
+  ['click', 'touchstart', 'pointerdown', 'keydown'].forEach((evt) => {
+    window.addEventListener(evt, unlockAudio, { once: true, passive: true });
+  });
 }
 
 export const soundService = {

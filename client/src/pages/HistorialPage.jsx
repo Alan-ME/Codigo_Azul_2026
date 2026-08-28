@@ -49,8 +49,10 @@ export default function HistorialPage() {
   const filtrados = useMemo(() => {
     return llamadosHistoricos.filter((l) => {
       const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
-      if (!p) return false;
-      if (fArea !== 'todas' && p.areaId !== fArea) return false;
+      const nombrePaciente = p ? `${p.nombre} ${p.apellido}` : (l.pacienteNombre || 'Emergencia en Cama');
+      const areaId = p ? p.areaId : (l.ubicacion?.sectorSala || 'guardia');
+
+      if (fArea !== 'todas' && areaId !== fArea) return false;
       if (fOrigen !== 'todos' && l.origen !== fOrigen) return false;
       if (fTipo !== 'todos' && l.tipo !== fTipo) return false;
       if (fEstado !== 'todos' && l.estado !== fEstado) return false;
@@ -59,8 +61,8 @@ export default function HistorialPage() {
       if (fHasta && l.horaInicio > fHasta + 'T23:59:59') return false;
       if (q.trim()) {
         const query = q.toLowerCase();
-        const nombreC = `${p.nombre} ${p.apellido}`.toLowerCase();
-        if (!nombreC.includes(query) && !p.dni.toLowerCase().includes(query)) return false;
+        const dni = p?.dni || '';
+        if (!nombrePaciente.toLowerCase().includes(query) && !dni.toLowerCase().includes(query)) return false;
       }
       return true;
     });
@@ -74,20 +76,20 @@ export default function HistorialPage() {
 
   const normalizarFilaPDF = (l) => {
     const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
-    const a = p && initialAreas.find((aa) => aa.id === p.areaId);
+    const a = p ? initialAreas.find((aa) => aa.id === p.areaId) : null;
     const e = initialUsuarios.find((u) => u.id === l.enfermeroId);
     return {
       fecha:     formatearFecha(l.horaInicio),
       inicio:    formatearHora(l.horaInicio),
       fin:       l.horaFin ? formatearHora(l.horaFin) : '—',
       duracion:  segundosADuracion(l.duracionSeg),
-      paciente:  p ? `${p.nombre} ${p.apellido}` : '—',
-      area:      a?.nombre || '',
-      hab:       p ? `${p.habitacion}/${p.cama}` : '',
-      origen:    l.origen,
-      tipo:      l.tipo === 'codigo-azul' ? 'Código Azul' : l.tipo,
-      enfermero: e?.nombre || '—',
-      estado:    l.estado,
+      paciente:  p ? `${p.nombre} ${p.apellido}` : (l.pacienteNombre || 'Emergencia en Cama'),
+      area:      a?.nombre || l.ubicacion?.sectorSala || 'Guardia',
+      hab:       p ? `${p.habitacion}/${p.cama}` : (l.ubicacion?.cama || 'Cama'),
+      origen:    l.origen || 'cama',
+      tipo:      l.tipo === 'codigo-azul' ? 'Código Azul' : (l.tipo || 'Emergencia'),
+      enfermero: e?.nombre || l.reanimadorNombre || 'Enfermería',
+      estado:    l.estado || 'atendido',
       tResp:     l.tiempoRespuestaSeg ? segundosADuracion(l.tiempoRespuestaSeg) : '',
     };
   };

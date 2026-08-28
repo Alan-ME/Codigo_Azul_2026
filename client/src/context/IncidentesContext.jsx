@@ -276,13 +276,13 @@ export function IncidentesProvider({ children }) {
 
       if (l.backendId && token) {
         try {
-          await fetch(`/api/v1/incidentes/${l.backendId}/cancelar`, {
-            method: 'POST',
+          await fetch(`/api/v1/incidentes/${l.backendId}/resolver`, {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ motivo: 'Atendido y resuelto en guardia' }),
+            body: JSON.stringify({ observaciones: 'Atención completada y resuelto en guardia' }),
           });
         } catch (err) {
-          console.warn('Aviso backend cancelar:', err);
+          console.warn('Aviso backend resolver:', err);
         }
       }
 
@@ -290,16 +290,18 @@ export function IncidentesProvider({ children }) {
       setLlamadosHistoricos((prev) => [
         {
           id: 'lh_' + Date.now(),
-          pacienteId: l.pacienteId,
+          pacienteId: l.pacienteId || 'p1',
+          pacienteNombre: nombreMostrar,
           tipo: l.tipo,
           origen: l.origen,
           estado: 'atendido',
-          enfermeroId: l.enfermeroId,
+          enfermeroId: l.enfermeroId || 'u3',
           reanimadorNombre: l.reanimadorNombre || 'Dr. Reanimador',
           horaInicio: l.horaInicio,
           horaFin: new Date().toISOString(),
           duracionSeg: dur,
           tiempoRespuestaSeg: dur,
+          ubicacion: l.ubicacion,
         },
         ...prev,
       ]);
@@ -307,6 +309,32 @@ export function IncidentesProvider({ children }) {
       // Remover de activos en todo el sistema
       setLlamadosActivos((prev) => prev.filter((x) => x.id !== id));
       toast({ titulo: 'Código Azul Resuelto', msj: `${nombreMostrar} — finalizado y registrado en historial`, tipo: 'exito' });
+    },
+    [llamadosActivos, token, toast],
+  );
+
+  // Cancelar Llamado / Falsa Alarma
+  const cancelarLlamado = useCallback(
+    async (id, motivo = 'Falsa alarma o activación no requerida') => {
+      soundService.stop();
+      const l = llamadosActivos.find((x) => x.id === id);
+      if (!l) return;
+      const nombreMostrar = l.pacienteNombre || 'Código Azul';
+
+      if (l.backendId && token) {
+        try {
+          await fetch(`/api/v1/incidentes/${l.backendId}/cancelar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ motivo }),
+          });
+        } catch (err) {
+          console.warn('Aviso backend cancelar:', err);
+        }
+      }
+
+      setLlamadosActivos((prev) => prev.filter((x) => x.id !== id));
+      toast({ titulo: 'Incidente Cancelado', msj: `${nombreMostrar} cancelado: ${motivo}`, tipo: 'aviso' });
     },
     [llamadosActivos, token, toast],
   );
@@ -334,6 +362,7 @@ export function IncidentesProvider({ children }) {
         piso: params.piso || ubi.piso,
         sala: params.sala || ubi.sectorSala || ubi.sala,
         cama: params.cama || ubi.cama,
+        ubicacionId: params.ubicacionId || ubi.id || ubi.ubicacionId,
       });
     },
     [dispararCodigoAzul]
@@ -352,6 +381,7 @@ export function IncidentesProvider({ children }) {
       alternarSilencioSirena,
       tomarLlamado,
       atenderLlamado,
+      cancelarLlamado,
       escalarLlamado,
     }),
     [
@@ -366,6 +396,7 @@ export function IncidentesProvider({ children }) {
       alternarSilencioSirena,
       tomarLlamado,
       atenderLlamado,
+      cancelarLlamado,
       escalarLlamado,
     ],
   );

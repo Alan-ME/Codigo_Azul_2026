@@ -67,8 +67,8 @@ export default function ReportesPage() {
   const lista = useMemo(() => {
     return llamadosHistoricos.filter((l) => {
       const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
-      if (!p) return false;
-      if (areasSel.size > 0 && !areasSel.has(p.areaId)) return false;
+      const areaId = p ? p.areaId : (l.ubicacion?.sectorSala || 'guardia');
+      if (areasSel.size > 0 && !areasSel.has(areaId)) return false;
       if (origen !== 'todos' && l.origen !== origen) return false;
       if (tipo !== 'todos' && l.tipo !== tipo) return false;
       if (enfermero !== 'todos' && l.enfermeroId !== enfermero) return false;
@@ -98,7 +98,8 @@ export default function ReportesPage() {
             (a) =>
               lista.filter((l) => {
                 const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
-                return p && p.areaId === a.id && l.estado === 'atendido';
+                const areaId = p ? p.areaId : (l.ubicacion?.sectorSala || 'guardia');
+                return (areaId === a.id || a.nombre.toLowerCase().includes(String(areaId).toLowerCase())) && l.estado === 'atendido';
               }).length
           ),
         },
@@ -109,7 +110,8 @@ export default function ReportesPage() {
             (a) =>
               lista.filter((l) => {
                 const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
-                return p && p.areaId === a.id && l.estado === 'no-atendido';
+                const areaId = p ? p.areaId : (l.ubicacion?.sectorSala || 'guardia');
+                return (areaId === a.id || a.nombre.toLowerCase().includes(String(areaId).toLowerCase())) && l.estado === 'no-atendido';
               }).length
           ),
         },
@@ -149,7 +151,8 @@ export default function ReportesPage() {
     const cuenta = (areaId, ori) => {
       return lista.filter((l) => {
         const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
-        return p && p.areaId === areaId && l.origen === ori;
+        const aId = p ? p.areaId : (l.ubicacion?.sectorSala || 'guardia');
+        return (aId === areaId || aId.toLowerCase().includes(areaId.toLowerCase())) && l.origen === ori;
       }).length;
     };
 
