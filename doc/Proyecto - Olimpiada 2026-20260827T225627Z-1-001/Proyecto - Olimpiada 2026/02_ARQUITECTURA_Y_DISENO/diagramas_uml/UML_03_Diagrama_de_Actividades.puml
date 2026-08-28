@@ -1,0 +1,119 @@
+@startuml UML_03_Diagrama_de_Actividades
+!theme plain
+skinparam roundcorner 8
+skinparam shadowing true
+skinparam backgroundColor #FFFFFF
+skinparam activity {
+    BackgroundColor #F8FAFC
+    BorderColor #334155
+    FontColor #0F172A
+    BarColor #1E293B
+    StartColor #059669
+    EndColor #DC2626
+    DiamondBackgroundColor #FEF3C7
+    DiamondBorderColor #D97706
+}
+skinparam note {
+    BackgroundColor #FEFFDD
+    BorderColor #CA8A04
+}
+
+header Plataforma Hospitalaria Código Azul — ONETP 2026
+title UML-03: Diagrama de Actividades — Protocolo Clínico y Ciclo de Vida FSM
+
+start
+
+:Personal de Salud detecta paciente en\ncolapso cardiorrespiratorio en Cama/Sala;
+
+:Presiona botón de pánico 'CÓDIGO AZUL'
+en Terminal Móvil o Estación de Enfermería;
+
+partition "Backend Core & Consistencia Transaccional" #EFF6FF {
+    :Envía POST /api/v1/incidentes/activar
+    con Bearer JWT y Ubicación Espacial;
+
+    if (¿Existe alerta activa en la misma\ncama creada hace menos de 60 segundos?) then (Sí [Reincidencia])
+        :Registra intento en auditoría
+        'ACTIVACION_REDUNDANTE_BLOQUEADA';
+        :Retorna HTTP 200 con UUID existente
+        (Barrera de Idempotencia);
+        stop
+    else (No [Nueva Emergencia])
+        :Inicia Transacción ACID en PostgreSQL;
+        :INSERT INTO incidentes (estado = 'ACTIVADO');
+        :INSERT INTO incidentes_auditoria_eventos
+        (tipo_evento = 'ACTIVACION', payload_data);
+        :COMMIT Transacción;
+    endif
+
+    fork
+        :Emitir Broadcast WebSockets (Socket.IO)
+        'codigo_azul_alerta' a Sala de Guardia;
+        :Dashboard activa sirena sonora y
+        resalta ubicación crítica en mapa;
+    fork again
+        :Despachar Push FCM de Alta Prioridad
+        con bypass de Doze Mode a Reanimadores;
+        :Terminales móviles reproducen tono
+        de emergencia médica;
+    end fork
+}
+
+partition "Equipo de Reanimación & Guardia" #F0FDF4 {
+    if (¿Se detecta Falsa Alarma o Descarte?) then (Sí)
+        if (¿Cancelado por Activador en < 60s\no por Administrador / Guardia?) then (Sí)
+            :Ejecuta POST /api/v1/incidentes/:id/cancelar
+            con motivo obligatorio;
+            :FSM transiciona a [ CANCELADO ];
+            :Silenciar alarmas y registrar en auditoría;
+            stop
+        else (No)
+            :Rechazar cancelación por falta de privilegios;
+        endif
+    else (No [Emergencia Real])
+    endif
+
+    :Reanimador presiona 'CONFIRMAR ASISTENCIA (ACK)'
+    desde la notificación móvil (PUT /:id/ack);
+
+    partition "Procesamiento de Asistencia" #EFF6FF {
+        :Inicia Transacción ACID;
+        :UPDATE incidentes SET estado = 'EN_ATENCION',
+        reanimador_id = user.id;
+        :Calcular latencia exacta de respuesta (t_ack - t_inicio);
+        :INSERT auditoría ('ACK_PRIMARIO', latencia);
+        :COMMIT;
+        :Emitir 'codigo_azul_atendido' a Guardia;
+    }
+
+    :Reanimador arriba a la sala e inicia
+    maniobras de RCP Avanzado (Guías AHA 2020);
+
+    if (¿Llegan reanimadores de apoyo adicionales?) then (Sí)
+        :Registrar ACK secundario en bitácora
+        como 'ACK_REANIMADOR_APOYO';
+    else (No)
+    endif
+
+    :Estabilización del paciente y culminación de RCP;
+
+    :Profesional ejecuta 'Cierre Clínico'
+    (PUT /api/v1/incidentes/:id/resolver);
+
+    partition "Cierre del Ciclo FSM" #EFF6FF {
+        :Inicia Transacción ACID;
+        :UPDATE incidentes SET estado = 'RESUELTO',
+        resolved_at = NOW();
+        :Calcular tiempo total de atención médica;
+        :INSERT auditoría ('RESOLUCION_CLINICA');
+        :COMMIT;
+        :Emitir broadcast 'codigo_azul_resuelto';
+    }
+}
+
+:Alerta finalizada en Guardia y datos consolidados
+en reportes estadísticos de gestión;
+
+stop
+
+@enduml

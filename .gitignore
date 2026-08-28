@@ -18,7 +18,9 @@ env
 
 # Builds y temporales
 dist/
+**/dist/
 build/
+**/build/
 .tempmediaStorage/
 *.log
 npm-debug.log*

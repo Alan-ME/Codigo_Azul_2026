@@ -1,0 +1,109 @@
+@startuml UML_04_Diagrama_de_Despliegue
+!theme plain
+skinparam roundcorner 8
+skinparam shadowing true
+skinparam backgroundColor #FFFFFF
+skinparam node {
+    BackgroundColor #F8FAFC
+    BorderColor #334155
+    HeaderBackgroundColor #1E293B
+    FontColor #0F172A
+    BorderThickness 1.5
+}
+skinparam component {
+    BackgroundColor #FFFFFF
+    BorderColor #475569
+    FontColor #0F172A
+}
+skinparam database {
+    BackgroundColor #FEF3C7
+    BorderColor #B45309
+    FontColor #78350F
+}
+skinparam cloud {
+    BackgroundColor #EFF6FF
+    BorderColor #1D4ED8
+    FontColor #1E3A8A
+}
+
+header Plataforma Hospitalaria Código Azul — ONETP 2026
+title UML-04: Diagrama de Despliegue de Infraestructura (Modelo C4 / Nodos)
+
+node "Terminal Móvil de Emergencia\n<<Dispositivo Android / iOS>>" as NodeMobile #F0FDF4 {
+    component "App Móvil PWA\n(React 18 + Vite)" as PWA {
+        [Módulo de Pánico (1 toque)]
+        [Receptor Alertas Sonoras\n(Web Audio API)]
+        [Service Worker (Caché Offline)]
+    }
+    component "FCM Client SDK\n(Background Receiver)" as FCMClient
+}
+
+node "Estación de Monitoreo\n<<PC de Sala de Guardia / UCI>>" as NodePC #F0FDF4 {
+    component "Navegador Web\n(Chromium / Firefox)" as Browser {
+        component "Dashboard Guardia SPA\n(React 18 + Vite)" as Dashboard {
+            [Mapa de Camas en Vivo]
+            [Cronómetros de Latencia]
+            [Bitácora de Auditoría]
+            [Socket.IO Client]
+        }
+    }
+}
+
+node "Servidor de Aplicaciones Hospitalario\n<<Docker Container / Linux Server>>" as NodeServer #EFF6FF {
+    component "Node.js v24 LTS Runtime" as NodeRuntime {
+        component "Backend Core (Express 5.2.1)" as Backend {
+            [Router REST & Middlewares\n(JWT, RBAC, Rate-Limit)]
+            [Módulos Feature-First\n(auth, codigo_azul, fcm)]
+            [Clean Architecture Use Cases]
+            [appEvents (Domain Event Bus)]
+        }
+        component "Socket.IO Gateway v4.8" as SocketsGateway
+        component "Firebase Admin SDK v13.4" as FirebaseSDK
+        component "pg Pool Client" as PGClient
+    }
+}
+
+node "Servidor de Base de Datos\n<<Docker Container / PostgreSQL 18>>" as NodeDB #FEF3C7 {
+    database "PostgreSQL 18.4\n(ACID Engine)" as PostgresDB {
+        [Esquema Relacional (5 Tablas)]
+        [Índices B-Tree (Idempotencia)]
+        [Trigger Inmutable plpgsql\n(fn_prevent_audit_tampering)]
+        [Extensión pgcrypto]
+    }
+    folder "Volumen Persistente\n<<Docker Volume: pgdata>>" as Storage
+}
+
+cloud "Google Cloud Services\n<<Infraestructura Externa>>" as CloudFCM #E0F2FE {
+    component "Firebase Cloud Messaging\n(FCM HTTP v1 API)" as FCMService
+}
+
+' Conexiones y Protocolos
+NodeMobile ..> NodeServer : "HTTPS (REST API / Bearer JWT)\nWSS (Socket.IO / Alerta Instantánea)"
+NodePC ..> NodeServer : "HTTPS (REST API / JWT)\nWSS (Socket.IO / Telemetría en Vivo)"
+
+Backend --> SocketsGateway : "invoca emisión"
+Backend --> FirebaseSDK : "dispara push"
+Backend --> PGClient : "consultas y transacciones ACID"
+
+PGClient ..> PostgresDB : "TCP/IP Port 5432\n(Pool de 20 Conexiones)"
+PostgresDB --> Storage : "persiste I/O sincrónico"
+
+FirebaseSDK ..> FCMService : "HTTPS / TLS 1.3\n(OAuth2 Service Account)"
+FCMService ..> FCMClient : "Push Notification de Alta Prioridad\n(Bypass Doze Mode)"
+
+note right of NodeDB
+  <b>Gobernanza y Persistencia:</b>
+  - Transacciones manuales BEGIN/COMMIT/ROLLBACK.
+  - Bloqueo por trigger de sentencias UPDATE/DELETE
+    en la tabla de auditoría médico-legal.
+  - Resolución temporal en milisegundos.
+end note
+
+note bottom of NodeServer
+  <b>Latencia y Redundancia:</b>
+  - Despacho paralelo WebSockets + FCM Push.
+  - Barrera de idempotencia de 60 segundos.
+  - Conexión resiliente con reconexión automática.
+end note
+
+@enduml

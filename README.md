@@ -240,9 +240,10 @@ erDiagram
 | `POST` | `/api/v1/auth/login` | Publico | `200`, `400`, `401` | Autenticacion mediante bcrypt y entrega de Bearer JWT. |
 | `GET` | `/api/v1/auth/me` | JWT | `200`, `401` | Perfil del usuario autenticado segun claims del token. |
 | `GET` | `/api/v1/incidentes/ubicaciones` | JWT | `200`, `401` | Directorio espacial hospitalario (Edificio, Piso, Cama). |
-| `GET` | `/api/v1/incidentes/activos` | `GUARDIA`, `MEDICO`, `REANIMADOR`, `ADMIN` | `200`, `401`, `403` | Listado de incidentes en curso (`ACTIVADO`, `EN_ATENCION`). |
+| `GET` | `/api/v1/incidentes/activos` | `GUARDIA`, `MEDICO`, `REANIMADOR`, `ADMIN` | `200`, `401`, `403` | Listado de incidentes en curso (`ACTIVADO`, `EN_ATENCION`) con equipo consolidado. |
 | `POST` | `/api/v1/incidentes/activar` | `MEDICO_ACTIVADOR`, `ADMINISTRADOR` | `201`, `200`, `400`, `403`, `404` | Disparo de alerta con barrera de idempotencia de 60s. |
-| `PUT` | `/api/v1/incidentes/:id/ack` | `REANIMADOR_MEDICO`, `ADMINISTRADOR` | `200`, `400`, `403`, `404`, `409` | Confirmacion de presencia y calculo de latencia en ms. |
+| `PUT` | `/api/v1/incidentes/:id/ack` | `REANIMADOR_MEDICO`, `ADMINISTRADOR` | `200`, `400`, `403`, `404`, `409` | Confirmacion de presencia (ACK Primario + Apoyo de equipo de hasta 7 miembros). |
+| `PUT` | `/api/v1/incidentes/:id/resolver` | `REANIMADOR` (a cargo/equipo), `GUARDIA`, `ADMIN` | `200`, `400`, `403`, `404`, `409` | Resolucion clinica del Código Azul y cese de maniobras de RCP. |
 | `POST` | `/api/v1/incidentes/:id/cancelar` | `ACTIVADOR` (<60s), `GUARDIA`, `ADMIN` | `200`, `400`, `403`, `404`, `409` | Cancelacion con motivo obligatorio auditado en JSONB. |
 | `GET` | `/api/v1/incidentes/:id` | JWT | `200`, `401`, `404` | Detalle completo con linea de tiempo de auditoria. |
 | `POST` | `/api/v1/fcm/token` | JWT | `201`, `400`, `401` | Registra token FCM del dispositivo móvil y lo suscribe a topics. |
@@ -252,14 +253,16 @@ erDiagram
 
 ---
 
-## Gobernanza y Seguridad Medico-Legal
+## Gobernanza, Protocolo Clinico y Seguridad Medico-Legal
 
 > [!NOTE]
-> En cumplimiento con las regulaciones de proteccion de datos de salud y estandares internacionales de informatica medica (ISO/IEC 27001), el sistema implementa tres niveles de proteccion:
+> En cumplimiento con las regulaciones de proteccion de datos de salud y estandares internacionales de informatica medica (ISO/IEC 27001, IEEE 830 y guias clinicas AHA/ACLS):
 
 1. **Inmutabilidad por Trigger en Motor**: La funcion `fn_prevent_audit_tampering()` asociada a `trg_audit_immutable` rechaza de manera irrevocable cualquier instruccion `UPDATE` o `DELETE` sobre la tabla `incidentes_auditoria_eventos`.
-2. **Minimizacion de Datos y Datos Sinteticos**: La plataforma opera sin almacenar identificadores civiles ni historias clinicas de pacientes, limitandose a la referencia espacial (cama/pabellon) y las marcas temporales.
-3. **Ofuscacion y Seguridad de Identificadores**: Los endpoints publicos exponen identificadores `UUID v4` criptograficos generados con `pgcrypto` para mitigar ataques de enumeracion secuencial.
+2. **Equipo Multidisciplinario de Reanimacion (AHA/ACLS)**: Soporte transaccional concurrente para hasta 7 profesionales de salud (Lider RCP, compresores, via aerea, desfibrilador, medicacion y anotador), registrando la latencia de respuesta individual de cada profesional en auditoria inmutable.
+3. **Control Jerarquico de Resolucion Clinica**: Solo el medico reanimador asignado, los miembros del equipo que confirmaron asistencia presencial o los administradores/operadores de guardia tienen autorizacion medico-legal para finalizar el incidente clinico.
+4. **Minimizacion de Datos y Datos Sinteticos**: La plataforma opera sin almacenar identificadores civiles ni historias clinicas de pacientes, limitandose a la referencia espacial (cama/pabellon) y las marcas temporales.
+5. **Ofuscacion y Seguridad de Identificadores**: Los endpoints publicos exponen identificadores `UUID v4` criptograficos generados con `pgcrypto` para mitigar ataques de enumeracion secuencial.
 
 ---
 
