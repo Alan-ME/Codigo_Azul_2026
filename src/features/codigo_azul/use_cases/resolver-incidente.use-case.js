@@ -58,7 +58,7 @@ export class ResolverIncidenteUseCase {
 
     if (!esAdminOGuardia && !esReanimadorAsignado) {
       // Verificar si participó como reanimador secundario de apoyo
-      const participacion = await this.auditRepo.buscarEventosPorIncidente(incidenteId);
+      const participacion = await this.auditRepo.findByIncidenteId(incidenteId);
       const participo = Array.isArray(participacion) && participacion.some(
         (ev) => Number(ev.usuario_id) === Number(user.id) && ['ACK_PRIMARIO', 'ACK_REANIMADOR_APOYO'].includes(ev.tipo_evento)
       );

@@ -27,13 +27,12 @@ function obtenerSalasDeRol(rol) {
   return salas;
 }
 
-/**
- * Normaliza el payload de incidente para compatibilidad con la app móvil.
- * @param {object} rawData
- * @returns {object}
- */
 function normalizarIncidente(rawData) {
   const d = rawData.data || rawData;
+  const equipo = d.equipoReanimacion || d.equipo_reanimacion || [];
+  const reanimadorObj = d.reanimador || (equipo.length > 0 ? equipo[0] : null);
+  const total = d.totalReanimadores || (equipo.length > 0 ? equipo.length : (reanimadorObj ? 1 : 0));
+
   return {
     id:          d.incidenteId || d.id,
     codigoUUID:  d.codigoUUID || d.codigo_uuid,
@@ -41,12 +40,15 @@ function normalizarIncidente(rawData) {
     estado:      (d.estado || 'ACTIVADO').toLowerCase().replaceAll('_', '-'),
     estadoRaw:   d.estado,
     ubicacion:   d.ubicacion,
-    activadoPor: d.activadoPor,
-    reanimador:        d.reanimador,
-    equipoReanimacion: d.equipoReanimacion || d.equipo_reanimacion || [],
-    totalReanimadores: d.totalReanimadores || (d.equipoReanimacion?.length) || (d.reanimador ? 1 : 0),
-    creadoEn:          d.createdAt || d.timestamp || new Date().toISOString(),
-    latencia:          d.latenciaSegundos || null,
+    activadoPor: d.activadoPor || d.activado_por,
+    reanimador:        reanimadorObj,
+    reanimadorNombre:  reanimadorObj?.nombre || d.reanimadorNombre,
+    equipoReanimacion: equipo,
+    totalReanimadores: total,
+    creadoEn:          d.createdAt || d.created_at || d.creadoEn || d.timestamp || new Date().toISOString(),
+    createdAt:         d.createdAt || d.created_at || d.creadoEn || d.timestamp || new Date().toISOString(),
+    created_at:        d.createdAt || d.created_at || d.creadoEn || d.timestamp || new Date().toISOString(),
+    latencia:          d.latenciaRespuestaSegundos || d.latenciaSegundos || d.latencia || null,
   };
 }
 

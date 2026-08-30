@@ -60,6 +60,10 @@ export class AuditoriaRepository {
     const result = await query(text, [incidenteId]);
     return result.rows;
   }
+
+  async buscarEventosPorIncidente(incidenteId) {
+    return this.findByIncidenteId(incidenteId);
+  }
 }
 
 export const auditoriaRepository = new AuditoriaRepository();

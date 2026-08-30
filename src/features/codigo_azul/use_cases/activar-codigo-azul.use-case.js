@@ -37,10 +37,10 @@ export class ActivarCodigoAzulUseCase {
       throw ApiError.notFound(`La ubicación con ID ${ubicacionId} no existe en el sistema.`);
     }
 
-    // 2. BARRERA DE IDEMPOTENCIA (5 Segundos de debounce)
-    // Si ya existe una alerta activa en la misma cama creada hace < 5s,
+    // 2. BARRERA DE IDEMPOTENCIA (60 Segundos de debounce)
+    // Si ya existe una alerta activa en la misma cama creada hace < 60s,
     // devolver el incidente existente sin duplicar el registro ni saturar la red.
-    const incidenteExistente = await this.repo.findRecentActiveByUbicacion(ubicacionId, 5);
+    const incidenteExistente = await this.repo.findRecentActiveByUbicacion(ubicacionId, 60);
     if (incidenteExistente) {
       // Registrar en background el intento redundante en auditoría
       this.auditRepo.registrar({
@@ -48,7 +48,7 @@ export class ActivarCodigoAzulUseCase {
         usuarioId:    user.id,
         tipoEvento:   'ACTIVACION_REDUNDANTE_BLOQUEADA',
         payloadData:  {
-          motivo: 'Pulsación repetida dentro de la ventana de idempotencia (5 segundos)',
+          motivo: 'Pulsación repetida dentro de la ventana de idempotencia (60 segundos)',
           usuario_intento: `${user.nombre} ${user.apellido}`,
           rol_usuario: user.rol,
         },
