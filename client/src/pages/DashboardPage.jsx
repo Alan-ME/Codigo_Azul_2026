@@ -26,6 +26,7 @@ export default function DashboardPage() {
     atenderLlamado,
     cancelarLlamado,
     puedeUsuarioFinalizarLlamado,
+    esUsuarioMiembroDelEquipo,
   } = useIncidentes();
   const { formatearHora, formatearFechaHora, segundosADuracion } = useUI();
 
@@ -204,7 +205,19 @@ export default function DashboardPage() {
               >
                 <Icono nombre="check" size={18} /> Confirmar Asistencia (ACK)
               </button>
-            ) : puedeUsuarioFinalizarLlamado(codAzul, user) ? (
+            ) : !esUsuarioMiembroDelEquipo(codAzul, user) ? (
+              <button
+                type="button"
+                className="btn btn-secundario"
+                onClick={() => tomarLlamado(codAzul.id)}
+                style={{ borderColor: '#38bdf8', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.15)' }}
+                title="Confirmar asistencia para sumarte al equipo de RCP como reanimador de apoyo."
+              >
+                <Icono nombre="usuarios" size={18} /> + Sumarme al equipo (ACK)
+              </button>
+            ) : null}
+
+            {puedeUsuarioFinalizarLlamado(codAzul, user) ? (
               <button
                 type="button"
                 className="btn btn-exito"
@@ -213,7 +226,7 @@ export default function DashboardPage() {
               >
                 <Icono nombre="check" size={18} /> Marcar Atendido / Finalizar
               </button>
-            ) : (
+            ) : codAzul.atendido && (
               <button
                 type="button"
                 className="btn"
@@ -229,9 +242,9 @@ export default function DashboardPage() {
                   fontSize: '13px',
                   fontWeight: 700,
                 }}
-                title="Solo el médico reanimador que atendió este Código Azul o un Administrador pueden finalizar la atención."
+                title="Debés sumarte al equipo de RCP (+ Sumarme al equipo) o ser Administrador para poder finalizar este Código Azul."
               >
-                🔒 Finalizar (Solo Reanimador / Admin)
+                🔒 Finalizar (Solo Equipo / Admin)
               </button>
             )}
 

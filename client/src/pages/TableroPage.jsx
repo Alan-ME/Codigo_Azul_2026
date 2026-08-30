@@ -14,7 +14,15 @@ import { initialAreas, initialPacientes, initialUsuarios } from '../data/mockDat
 
 export default function TableroPage() {
   const { user } = useAuth();
-  const { llamadosActivos, tomarLlamado, atenderLlamado, cancelarLlamado, escalarLlamado, puedeUsuarioFinalizarLlamado } = useIncidentes();
+  const {
+    llamadosActivos,
+    tomarLlamado,
+    atenderLlamado,
+    cancelarLlamado,
+    escalarLlamado,
+    puedeUsuarioFinalizarLlamado,
+    esUsuarioMiembroDelEquipo,
+  } = useIncidentes();
   const { formatearHora, segundosADuracion, avatarFallback } = useUI();
 
   const [filtroTipo, setFiltroTipo] = useState('todos');
@@ -226,13 +234,24 @@ export default function TableroPage() {
                     >
                       <Icono nombre="check" size={14} /> Tomar
                     </button>
-                  ) : (
+                  ) : esUsuarioMiembroDelEquipo(l, user) ? (
                     <button
                       type="button"
                       className="btn btn-sm"
                       style={{ background: 'rgba(16, 185, 129, 0.2)', borderColor: '#10b981', color: '#34d399', cursor: 'default' }}
+                      title="Ya formás parte del equipo de reanimación asignado a este paciente."
                     >
-                      <Icono nombre="check" size={14} /> Tomado
+                      <Icono nombre="check" size={14} /> En equipo
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-secundario btn-sm"
+                      onClick={() => tomarLlamado(l.id)}
+                      style={{ borderColor: '#38bdf8', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.12)' }}
+                      title="Confirmar asistencia para sumarte al equipo de RCP como reanimador de apoyo."
+                    >
+                      <Icono nombre="usuarios" size={14} /> + Unirme
                     </button>
                   )}
 
@@ -256,7 +275,7 @@ export default function TableroPage() {
                         border: '1px solid rgba(255, 255, 255, 0.1)',
                         color: '#94a3b8',
                       }}
-                      title="Solo el médico reanimador que atendió este llamado o un Administrador pueden finalizarlo."
+                      title={!l.atendido ? "El llamado debe ser tomado antes de finalizarse." : "Debés sumarte al equipo de RCP (+ Unirme) o ser Administrador para poder finalizar este Código Azul."}
                     >
                       🔒 Finalizar
                     </button>

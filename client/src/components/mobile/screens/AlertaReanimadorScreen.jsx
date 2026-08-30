@@ -116,9 +116,9 @@ export default function AlertaReanimadorScreen({
           >
             {todosLosIncidentes.map((inc, idx) => {
               const esActual = idx === incidenteSeleccionadoIndex;
-              const atend = inc.atendido;
-              const inicio = new Date(inc.horaInicio).getTime();
-              const seg = Math.max(0, Math.floor((tiempoActual - inicio) / 1000));
+              const rawFecha = inc.horaInicio || inc.created_at || inc.createdAt || inc.creadoEn;
+              const inicio = new Date(rawFecha).getTime();
+              const seg = isNaN(inicio) ? 0 : Math.max(0, Math.floor((tiempoActual - inicio) / 1000));
               const crono = segundosADuracion ? segundosADuracion(seg) : `${Math.floor(seg / 60)}:${seg % 60 < 10 ? '0' : ''}${seg % 60}`;
 
               return (

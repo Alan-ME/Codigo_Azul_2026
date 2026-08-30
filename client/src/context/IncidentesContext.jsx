@@ -17,13 +17,14 @@ const IncidentesContext = createContext(null);
 function normalizarIncidenteBackend(inc) {
   const ubi = inc.ubicacion || {};
   const actNom = inc.activado_por?.nombre || inc.activadoPor?.nombre || 'Personal Médico';
-  const reaNom = inc.reanimador?.nombre || inc.reanimadorNombre || null;
   const equipo = inc.equipo_reanimacion || inc.equipoReanimacion || [];
-  const totalRea = inc.totalReanimadores || (equipo.length > 0 ? equipo.length : (reaNom ? 1 : 0));
+  const reaLider = inc.reanimador?.nombre || inc.reanimadorNombre || (equipo.length > 0 ? equipo[0].nombre : null);
+  const reaLiderId = inc.reanimador?.id || inc.reanimadorId || (equipo.length > 0 ? equipo[0].id : null);
+  const totalRea = inc.totalReanimadores || (equipo.length > 0 ? equipo.length : (reaLider ? 1 : 0));
 
   return {
-    id:                 'la-bd-' + inc.id,
-    backendId:          inc.id,
+    id:                 'la-bd-' + (inc.id || inc.incidenteId || inc.backendId),
+    backendId:          inc.id || inc.incidenteId || inc.backendId,
     codigoUUID:         inc.codigo_uuid || inc.codigoUUID,
     pacienteId:         null,
     pacienteNombre:     'Emergencia en ' + (ubi.cama || 'Cama'),
@@ -31,46 +32,51 @@ function normalizarIncidenteBackend(inc) {
     origen:             'cama',
     enfermeroId:        null,
     enfermeroNombre:    actNom,
-    reanimadorNombre:   reaNom,
+    reanimadorNombre:   reaLider,
+    reanimadorId:       reaLiderId,
     equipoReanimacion:  equipo,
     totalReanimadores:  totalRea,
     ubicacion:          ubi,
-    horaInicio:         inc.created_at || inc.creadoEn || inc.createdAt || new Date().toISOString(),
-    estado:             (inc.estado || 'ACTIVADO').toUpperCase(),
-    atendido:           inc.estado === 'EN_ATENCION' || inc.estado === 'en-atencion',
+    horaInicio:         inc.created_at || inc.createdAt || inc.creadoEn || new Date().toISOString(),
+    estado:             (inc.estado || inc.estadoRaw || 'ACTIVADO').toUpperCase().replaceAll('-', '_'),
+    atendido:           inc.estado === 'EN_ATENCION' || inc.estado === 'en-atencion' || inc.estadoRaw === 'EN_ATENCION',
   };
 }
 
+export function esUsuarioMiembroDelEquipo(llamado, user) {
+  if (!user || !llamado) return false;
+  const nombreUsuario = (user.nombreCompleto || user.nombre || '').trim().toLowerCase();
+  const userId = user.id || user.usuarioId || user.backendUser?.id;
+
+  // Reanimador principal asignado
+  if (userId && llamado.reanimadorId && Number(llamado.reanimadorId) === Number(userId)) return true;
+  if (nombreUsuario && llamado.reanimadorNombre && llamado.reanimadorNombre.toLowerCase().includes(nombreUsuario)) return true;
+
+  // Reanimador de apoyo / miembro del equipo de RCP
+  const equipo = llamado.equipoReanimacion || llamado.equipo_reanimacion;
+  if (Array.isArray(equipo) && equipo.length > 0) {
+    return equipo.some(
+      (r) => (userId && Number(r.id) === Number(userId)) || (nombreUsuario && r.nombre?.toLowerCase().includes(nombreUsuario))
+    );
+  }
+
+  return false;
+}
+
 export function puedeUsuarioFinalizarLlamado(llamado, user) {
-  if (!user || !llamado) return true;
-  const rol = (user.rolBackend || user.rol || '').toUpperCase();
+  if (!user || !llamado) return false;
+  const rol = (user.rolBackend || user.backendUser?.rol || user.rol || '').toUpperCase();
+  
   // Administradores y Operadores de Guardia tienen autorización jerárquica
   if (['ADMINISTRADOR', 'OPERADOR_GUARDIA', 'ADMIN', 'GUARDIA'].includes(rol)) {
     return true;
   }
-  // Si el llamado no está atendido, primero se debe confirmar asistencia (ACK)
+  
+  // Si el llamado no está atendido (nadie confirmó ACK aún), no se puede finalizar
   if (!llamado.atendido) return false;
 
-  const nombreUsuario = (user.nombreCompleto || user.nombre || '').trim().toLowerCase();
-
-  // Reanimador principal asignado
-  if (user.id && llamado.reanimadorId && Number(llamado.reanimadorId) === Number(user.id)) return true;
-  if (nombreUsuario && llamado.reanimadorNombre && llamado.reanimadorNombre.toLowerCase().includes(nombreUsuario)) return true;
-
-  // Reanimador de apoyo / miembro del equipo
-  if (Array.isArray(llamado.equipoReanimacion) && llamado.equipoReanimacion.length > 0) {
-    const esMiembro = llamado.equipoReanimacion.some(
-      (r) => (user.id && Number(r.id) === Number(user.id)) || (nombreUsuario && r.nombre?.toLowerCase().includes(nombreUsuario))
-    );
-    if (esMiembro) return true;
-  }
-
-  // Si el rol es Reanimador Médico y estamos en modo prueba o sin reanimador específico registrado
-  if (rol === 'REANIMADOR_MEDICO' || rol === 'REANIMADOR') {
-    return true;
-  }
-
-  return false;
+  // Si es reanimador o médico, solo puede finalizar si tomó el llamado o se sumó al equipo
+  return esUsuarioMiembroDelEquipo(llamado, user);
 }
 
 export function IncidentesProvider({ children }) {
@@ -194,22 +200,29 @@ export function IncidentesProvider({ children }) {
           soundService.silenciar();
           setSirenaSilenciada(true);
         }
+        const incId = inc.id || inc.incidenteId || inc.backendId;
+        const equipoAct = inc.equipoReanimacion || inc.equipo_reanimacion || [];
+        const total = inc.totalReanimadores || (equipoAct.length > 0 ? equipoAct.length : 1);
+        const reaLider = inc.reanimador?.nombre || inc.reanimadorNombre || (equipoAct.length > 0 ? equipoAct[0].nombre : 'Personal Médico');
+        const reaLiderId = inc.reanimador?.id || inc.reanimadorId || (equipoAct.length > 0 ? equipoAct[0].id : null);
+
         setLlamadosActivos((prev) =>
           prev.map((item) => {
             if (
-              String(item.backendId) === String(inc.id) ||
-              String(item.id) === String(inc.id) ||
-              item.id === 'la-bd-' + inc.id
+              String(item.backendId) === String(incId) ||
+              String(item.id) === String(incId) ||
+              item.id === 'la-bd-' + incId
             ) {
-              const equipoAct = inc.equipoReanimacion || inc.equipo_reanimacion || item.equipoReanimacion || [];
-              const total = inc.totalReanimadores || (equipoAct.length > 0 ? equipoAct.length : 1);
               return {
                 ...item,
                 estado: 'EN_ATENCION',
                 atendido: true,
-                reanimadorNombre: inc.reanimador?.nombre || item.reanimadorNombre || 'Personal Médico',
+                reanimadorNombre: reaLider,
+                reanimadorId: reaLiderId || item.reanimadorId,
                 equipoReanimacion: equipoAct,
                 totalReanimadores: total,
+                // Preservar horaInicio original para que el cronómetro jamás se resetee
+                horaInicio: item.horaInicio || inc.created_at || inc.createdAt || inc.creadoEn || new Date().toISOString(),
               };
             }
             return item;
@@ -437,31 +450,55 @@ export function IncidentesProvider({ children }) {
     async (id) => {
       soundService.silenciar();
       setSirenaSilenciada(true);
-      const l = llamadosActivos.find((x) => x.id === id || x.backendId === id || String(x.backendId) === String(id));
+      const l = llamadosActivos.find(
+        (x) => x.id === id || x.backendId === id || String(x.backendId) === String(id) || x.id === 'la-bd-' + id
+      );
       if (!l) return;
       const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
       const nombreMostrar = p ? `${p.nombre} ${p.apellido}` : (l.pacienteNombre || 'Código Azul');
 
       let reanimadorNombreAsignado = user?.nombre || 'Dr. Ivan Cardozo';
       const authToken = token || apiClient.getToken();
-      const targetBackendId = l.backendId || (String(l.id).startsWith('la-bd-') ? parseInt(l.id.replace('la-bd-', ''), 10) : null);
+      const targetBackendId = l.backendId || (String(l.id).startsWith('la-bd-') ? parseInt(l.id.replace('la-bd-', ''), 10) : (typeof id === 'number' ? id : parseInt(id, 10)));
 
-      if (targetBackendId && authToken) {
+      if (targetBackendId && authToken && !isNaN(targetBackendId)) {
         try {
           const res = await fetch(`/api/v1/incidentes/${targetBackendId}/ack`, {
             method: 'PUT',
             headers: { Authorization: `Bearer ${authToken}` },
           });
           const json = await res.json();
-          if (json.success && json.data?.reanimador?.nombre) {
-            reanimadorNombreAsignado = json.data.reanimador.nombre;
+          if (json.success && json.data) {
+            const data = json.data;
+            const itemActualizado = normalizarIncidenteBackend(data);
+            setLlamadosActivos((prev) =>
+              prev.map((item) =>
+                item.backendId === targetBackendId || item.id === l.id || item.id === 'la-bd-' + targetBackendId
+                  ? { ...itemActualizado, horaInicio: item.horaInicio || itemActualizado.horaInicio }
+                  : item
+              )
+            );
+            const esSecundario = data.esReanimadorSecundario;
+            toast({
+              titulo: esSecundario ? '🤝 Te sumaste al Equipo de RCP' : '✅ Asistencia Confirmada (Líder)',
+              msj: `${nombreMostrar} — Registrado como ${esSecundario ? 'Reanimador de Apoyo' : 'Reanimador Principal'}`,
+              tipo: 'exito',
+            });
+            return;
+          } else {
+            toast({
+              titulo: 'Error al confirmar asistencia',
+              msj: json.message || 'No se pudo registrar el ACK en el servidor.',
+              tipo: 'error',
+            });
+            return;
           }
         } catch (err) {
           console.warn('Aviso backend ACK:', err);
         }
       }
 
-      // Actualizar estado reactivo inmediatamente
+      // Actualizar estado reactivo local (modo demo o sin backend)
       setLlamadosActivos((prev) =>
         prev.map((item) =>
           item.id === id || item.backendId === id || String(item.backendId) === String(targetBackendId) || item.id === l.id
@@ -479,33 +516,27 @@ export function IncidentesProvider({ children }) {
     async (id) => {
       soundService.silenciar();
       setSirenaSilenciada(true);
-      const l = llamadosActivos.find((x) => x.id === id || String(x.backendId) === String(id));
+      const l = llamadosActivos.find(
+        (x) => x.id === id || String(x.backendId) === String(id) || x.id === 'la-bd-' + id
+      );
       if (!l) return;
       const p = initialPacientes.find((pp) => pp.id === l.pacienteId);
       const nombreMostrar = p ? `${p.nombre} ${p.apellido}` : (l.pacienteNombre || 'Código Azul');
 
       const authToken = token || apiClient.getToken();
-      const targetBackendId = l.backendId || (String(l.id).startsWith('la-bd-') ? parseInt(l.id.replace('la-bd-', ''), 10) : null);
+      const targetBackendId = l.backendId || (String(l.id).startsWith('la-bd-') ? parseInt(l.id.replace('la-bd-', ''), 10) : (typeof id === 'number' ? id : parseInt(id, 10)));
 
-      if (targetBackendId && authToken) {
+      if (targetBackendId && authToken && !isNaN(targetBackendId)) {
         try {
-          // Si el incidente estaba en ACTIVADO, primero confirmamos ACK para respetar la FSM clínica
-          if (l.estado === 'ACTIVADO' || !l.atendido) {
-            await fetch(`/api/v1/incidentes/${targetBackendId}/ack`, {
-              method: 'PUT',
-              headers: { Authorization: `Bearer ${authToken}` },
-            }).catch(() => {});
-          }
-
           const res = await fetch(`/api/v1/incidentes/${targetBackendId}/resolver`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
             body: JSON.stringify({ observaciones: 'Atención completada y resuelto en guardia' }),
           });
           const json = await res.json();
-          if (!res.ok && res.status === 403) {
+          if (!res.ok || !json.success) {
             toast({
-              titulo: '⛔ Permiso Denegado (403)',
+              titulo: `⛔ No se pudo finalizar (${res.status})`,
               msj: json.message || 'Solo el personal médico que atendió el Código Azul o un administrador pueden finalizar la atención.',
               tipo: 'error',
             });
@@ -513,6 +544,12 @@ export function IncidentesProvider({ children }) {
           }
         } catch (err) {
           console.warn('Aviso backend resolver:', err);
+          toast({
+            titulo: '📡 Error de comunicación',
+            msj: 'No se pudo contactar al servidor para finalizar el incidente.',
+            tipo: 'error',
+          });
+          return;
         }
       }
 
@@ -668,6 +705,7 @@ export function IncidentesProvider({ children }) {
       cancelarLlamado,
       escalarLlamado,
       puedeUsuarioFinalizarLlamado,
+      esUsuarioMiembroDelEquipo,
     }),
     [
       llamadosActivos,
