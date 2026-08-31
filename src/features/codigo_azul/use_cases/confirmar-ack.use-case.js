@@ -51,6 +51,24 @@ export class ConfirmarAckUseCase {
     // Si ya tiene un reanimador principal asignado, este se registra como Reanimador Secundario de Apoyo
     const esReanimadorSecundario = incidente.estado === EstadoIncidente.EN_ATENCION;
 
+    // Consultar eventos de auditoría previos para validar cupo y anti-duplicados
+    const auditoriaExistente = await this.auditRepo.findByIncidenteId(incidenteId);
+    const eventosEquipo = (Array.isArray(auditoriaExistente) ? auditoriaExistente : []).filter(
+      (ev) => ['ACK_PRIMARIO', 'ACK_REANIMADOR_APOYO'].includes(ev.tipo_evento)
+    );
+
+    // Validar si el usuario ya es miembro registrado del equipo
+    const yaEsMiembro = eventosEquipo.some((ev) => Number(ev.usuario_id) === Number(user.id));
+    if (yaEsMiembro) {
+      throw ApiError.conflict('Ya formás parte del equipo de reanimación asignado a este Código Azul.');
+    }
+
+    // Validar cupo máximo clínico (Máximo 7 especialistas según protocolo de RCP / ACLS)
+    const MAX_REANIMADORES = 7;
+    if (eventosEquipo.length >= MAX_REANIMADORES) {
+      throw ApiError.conflict(`El equipo de reanimación ya ha alcanzado el cupo máximo de ${MAX_REANIMADORES} especialistas.`);
+    }
+
     const client = await getClient();
 
     try {

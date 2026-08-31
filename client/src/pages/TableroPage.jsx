@@ -243,6 +243,16 @@ export default function TableroPage() {
                     >
                       <Icono nombre="check" size={14} /> En equipo
                     </button>
+                  ) : (l.totalReanimadores || l.equipoReanimacion?.length || 1) >= 7 ? (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      disabled
+                      style={{ opacity: 0.5, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#94a3b8' }}
+                      title="El equipo de reanimación ya cuenta con el cupo máximo de 7 especialistas en sitio."
+                    >
+                      Completo (7/7)
+                    </button>
                   ) : (
                     <button
                       type="button"

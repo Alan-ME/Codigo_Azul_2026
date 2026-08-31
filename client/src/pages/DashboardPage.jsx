@@ -206,15 +206,37 @@ export default function DashboardPage() {
                 <Icono nombre="check" size={18} /> Confirmar Asistencia (ACK)
               </button>
             ) : !esUsuarioMiembroDelEquipo(codAzul, user) ? (
-              <button
-                type="button"
-                className="btn btn-secundario"
-                onClick={() => tomarLlamado(codAzul.id)}
-                style={{ borderColor: '#38bdf8', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.15)' }}
-                title="Confirmar asistencia para sumarte al equipo de RCP como reanimador de apoyo."
-              >
-                <Icono nombre="usuarios" size={18} /> + Sumarme al equipo (ACK)
-              </button>
+              (codAzul.totalReanimadores || codAzul.equipoReanimacion?.length || 1) >= 7 ? (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled
+                  style={{
+                    opacity: 0.6,
+                    cursor: 'not-allowed',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    color: '#94a3b8',
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                  }}
+                  title="El equipo de reanimación ya cuenta con el cupo máximo de 7 especialistas en sitio."
+                >
+                  <Icono nombre="usuarios" size={18} /> Equipo Completo (7/7)
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-secundario"
+                  onClick={() => tomarLlamado(codAzul.id)}
+                  style={{ borderColor: '#38bdf8', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.15)' }}
+                  title="Confirmar asistencia para sumarte al equipo de RCP como reanimador de apoyo."
+                >
+                  <Icono nombre="usuarios" size={18} /> + Sumarme al equipo (ACK)
+                </button>
+              )
             ) : null}
 
             {puedeUsuarioFinalizarLlamado(codAzul, user) ? (
