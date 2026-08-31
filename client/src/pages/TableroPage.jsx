@@ -196,9 +196,14 @@ export default function TableroPage() {
                 </div>
 
                 {l.atendido && (
-                  <div style={{ margin: '8px 12px 2px', padding: '5px 10px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#34d399', fontSize: '11.5px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Icono nombre="check" size={13} />
-                    <span>En atención: <strong>{l.reanimadorNombre || 'Dr. Ivan Cardozo'}</strong></span>
+                  <div style={{ margin: '8px 12px 2px', padding: '5px 10px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#34d399', fontSize: '11.5px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Icono nombre="check" size={13} />
+                      <span>En atención: <strong>{l.reanimadorNombre || 'Equipo Reanimador'}</strong></span>
+                    </div>
+                    <span style={{ background: '#10b981', color: '#ffffff', fontSize: '10.5px', fontWeight: 800, padding: '2px 7px', borderRadius: '999px', flexShrink: 0 }}>
+                      👨‍⚕️ {l.totalReanimadores || (l.equipoReanimacion?.length) || 1}/7
+                    </span>
                   </div>
                 )}
 
@@ -229,7 +234,26 @@ export default function TableroPage() {
                     >
                       <Icono nombre="check" size={14} /> Tomar
                     </button>
-                  ) : null}
+                  ) : esUsuarioMiembroDelEquipo(l, user) ? (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      style={{ background: 'rgba(16, 185, 129, 0.2)', borderColor: '#10b981', color: '#34d399', cursor: 'default' }}
+                      title="Ya formás parte del equipo de reanimación asignado a este paciente."
+                    >
+                      <Icono nombre="check" size={14} /> En equipo
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-secundario btn-sm"
+                      onClick={() => tomarLlamado(l.id)}
+                      style={{ borderColor: '#38bdf8', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.12)' }}
+                      title="Confirmar asistencia para sumarte al equipo de RCP como reanimador de apoyo."
+                    >
+                      <Icono nombre="usuarios" size={14} /> + Unirme
+                    </button>
+                  )}
 
                   {puedeUsuarioFinalizarLlamado(l, user) ? (
                     <button
@@ -245,7 +269,7 @@ export default function TableroPage() {
                       className="btn btn-secundario btn-sm"
                       disabled
                       style={{ opacity: 0.55, cursor: 'not-allowed' }}
-                      title={`Solo ${l.reanimadorNombre || 'el reanimador asignado'} o un administrador pueden finalizar este llamado.`}
+                      title="Debés sumarte al equipo de RCP (+ Unirme) o ser Administrador para poder finalizar este Código Azul."
                     >
                       <Icono nombre="lock" size={12} /> Finalizar
                     </button>

@@ -175,7 +175,7 @@ export default function DashboardPage() {
             <h3>{tituloCA}</h3>
             <p>
               {codAzul.atendido
-                ? `👨‍⚕️ En atención por: ${codAzul.reanimadorNombre || 'Dr. Ivan Cardozo'} · ${detalleCA}`
+                ? `👨‍⚕️ En atención por: ${codAzul.reanimadorNombre || 'Equipo de Reanimación'} (${codAzul.totalReanimadores || (codAzul.equipoReanimacion?.length) || 1}/7 en sitio) · ${detalleCA}`
                 : codAzul.reanimadorNombre
                 ? `👨‍⚕️ Asistencia: ${codAzul.reanimadorNombre} (en camino)`
                 : detalleCA}
@@ -197,7 +197,7 @@ export default function DashboardPage() {
               {sirenaSilenciada ? 'Reactivar sirena' : 'Silenciar sirena'}
             </button>
 
-            {!codAzul.atendido && (
+            {!codAzul.atendido ? (
               <button
                 type="button"
                 className="btn btn-primario"
@@ -205,7 +205,17 @@ export default function DashboardPage() {
               >
                 <Icono nombre="check" size={18} /> Confirmar Asistencia (ACK)
               </button>
-            )}
+            ) : !esUsuarioMiembroDelEquipo(codAzul, user) ? (
+              <button
+                type="button"
+                className="btn btn-secundario"
+                onClick={() => tomarLlamado(codAzul.id)}
+                style={{ borderColor: '#38bdf8', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.15)' }}
+                title="Confirmar asistencia para sumarte al equipo de RCP como reanimador de apoyo."
+              >
+                <Icono nombre="usuarios" size={18} /> + Sumarme al equipo (ACK)
+              </button>
+            ) : null}
 
             {puedeUsuarioFinalizarLlamado(codAzul, user) ? (
               <button
