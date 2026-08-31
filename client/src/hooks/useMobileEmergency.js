@@ -146,7 +146,9 @@ export function useMobileEmergency(rolActivo = 'enfermero') {
 
   const cronometroTexto = useMemo(() => {
     if (!incidenteActivo) return '00:00';
-    const inicio = new Date(incidenteActivo.horaInicio).getTime();
+    const rawFecha = incidenteActivo.horaInicio || incidenteActivo.created_at || incidenteActivo.createdAt || incidenteActivo.creadoEn;
+    const inicio = new Date(rawFecha).getTime();
+    if (isNaN(inicio) || inicio <= 0) return '00:00';
     const seg = Math.max(0, Math.floor((tiempoActual - inicio) / 1000));
     return segundosADuracion ? segundosADuracion(seg) : `${Math.floor(seg / 60)}:${seg % 60 < 10 ? '0' : ''}${seg % 60}`;
   }, [incidenteActivo, tiempoActual, segundosADuracion]);

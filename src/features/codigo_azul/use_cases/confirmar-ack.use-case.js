@@ -111,17 +111,27 @@ export class ConfirmarAckUseCase {
 
       await client.query('COMMIT');
 
+      // Obtener el líder de reanimación (quien realizó el ACK_PRIMARIO)
+      const liderEquipo = equipoReanimacion.find((r) => r.tipo === 'ACK_PRIMARIO') || equipoReanimacion[0] || {
+        id: incidenteActualizado.reanimador_id || user.id,
+        nombre: `${user.nombre} ${user.apellido}`,
+        rol: user.rol,
+      };
+
       const payloadRespuesta = {
         incidenteId:               incidente.id,
+        id:                        incidente.id,
         codigoUUID:                incidente.codigo_uuid,
         estado:                    EstadoIncidente.EN_ATENCION,
         latenciaRespuestaSegundos: latenciaSegundos,
         esReanimadorSecundario,
         reanimador: {
-          id:     incidenteActualizado.reanimador_id || user.id,
-          nombre: `${user.nombre} ${user.apellido}`,
-          rol:    user.rol,
+          id:     liderEquipo.id,
+          nombre: liderEquipo.nombre,
+          rol:    liderEquipo.rol,
         },
+        reanimadorNombre:          liderEquipo.nombre,
+        reanimadorId:              liderEquipo.id,
         equipoReanimacion,
         totalReanimadores:         equipoReanimacion.length,
         ubicacion: {
@@ -130,6 +140,8 @@ export class ConfirmarAckUseCase {
           sectorSala: incidente.sector_sala,
           cama:       incidente.cama,
         },
+        createdAt:                 incidente.created_at,
+        created_at:                incidente.created_at,
       };
 
       // 4. Emitir evento interno para Socket.IO Gateway

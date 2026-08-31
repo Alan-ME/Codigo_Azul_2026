@@ -39,8 +39,7 @@ export class ActivarCodigoAzulUseCase {
 
     // 2. BARRERA DE IDEMPOTENCIA (60 Segundos de debounce)
     // Si ya existe una alerta activa en la misma cama creada hace < 60s,
-    // devolver el incidente existente sin duplicar el registro ni saturar la red,
-    // antes eran 5 segundos por razones de testeo.
+    // devolver el incidente existente sin duplicar el registro ni saturar la red.
     const incidenteExistente = await this.repo.findRecentActiveByUbicacion(ubicacionId, 60);
     if (incidenteExistente) {
       // Registrar en background el intento redundante en auditoría
